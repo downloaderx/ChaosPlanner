@@ -624,3 +624,57 @@ input:disabled {
     margin: 0;
   }
 }
+
+.account-box {
+  min-width: min(360px, 100%);
+  background: #ffffff;
+  border: 1px solid #e7e2cc;
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  box-shadow: 0 1px 0 #f1eddb;
+}
+
+.account-email {
+  color: #5c5740;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.account-btn {
+  background: #f3efe0;
+  color: #3f6b3f;
+  border: 1px solid #e5dec4;
+  border-radius: 9px;
+  padding: 8px 9px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.account-btn.danger {
+  color: #9b3d34;
+}
+
+.account-message {
+  color: #3f6b3f;
+  font-size: 13px;
+  margin-left: 44px;
+}
+
+@media (max-width: 740px) {
+  .account-box {
+    min-width: 0;
+  }
+}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, X, ArrowRight, ArrowUp, Check, Clock, Sparkles, LogOut } from "lucide-react";
+import { Plus, X, ArrowRight, ArrowUp, Check, Clock, Sparkles, LogOut, KeyRound, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const ROTATIONS = [-2, 1.5, -1, 2, -1.5, 1, -2.5, 0.5];
@@ -38,6 +38,8 @@ export default function BufferPlanner({ user }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [accountMessage, setAccountMessage] = useState("");
+const [accountError, setAccountError] = useState("");
   const inputRef = useRef(null);
 
   const runMutation = useCallback(
@@ -204,6 +206,34 @@ export default function BufferPlanner({ user }) {
     });
   }
 
+async function sendPasswordReset() {
+  setAccountMessage("");
+  setAccountError("");
+
+  if (!user.email) {
+    setAccountError("No email found for this account.");
+    return;
+  }
+
+  const { error: resetError } = await supabase.auth.resetPasswordForEmail(user.email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+
+  if (resetError) {
+    setAccountError(resetError.message || "Could not send reset link.");
+    return;
+  }
+
+  setAccountMessage("Password reset link sent to your email.");
+}
+
+function requestDeleteAccount() {
+  setAccountError("");
+  setAccountMessage(
+    "Account deletion is manual in this test version. Contact the app owner if you want your account removed."
+  );
+}
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -233,13 +263,31 @@ export default function BufferPlanner({ user }) {
               <p>Catch every passing thought. Keep only a handful live. Work on just one at a time.</p>
             </div>
           </div>
+          </div>
 
-          <button className="sign-out" type="button" onClick={signOut} title={user.email || "Sign out"}>
-            <LogOut size={15} /> Sign out
-          </button>
-        </div>
+         <div className="account-box">
+  <div className="account-email" title={user.email || "Account"}>
+    {user.email || "Signed in"}
+  </div>
+
+  <div className="account-actions">
+    <button className="account-btn" type="button" onClick={sendPasswordReset}>
+      <KeyRound size={14} /> Reset password
+    </button>
+
+    <button className="account-btn danger" type="button" onClick={requestDeleteAccount}>
+      <Trash2 size={14} /> Delete request
+    </button>
+
+    <button className="account-btn" type="button" onClick={signOut} title={user.email || "Sign out"}>
+      <LogOut size={14} /> Sign out
+    </button>
+  </div>
+</div>
 
         {error && <p className="error-text">{error}</p>}
+        {accountError && <p className="error-text">{accountError}</p>}
+{accountMessage && <p className="account-message">{accountMessage}</p>}
       </header>
 
       <main className="bp-main">
