@@ -391,10 +391,22 @@ input:disabled {
 .auth-shell,
 .planner-shell {
   min-height: 100vh;
-  background: var(--bg);
-  background-image: var(--bg-image, none), radial-gradient(circle at 1px 1px, var(--bg-dot) 1px, transparent 1px);
-  background-size: var(--bg-image-size, auto), 22px 22px;
-  background-attachment: fixed, scroll;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--bg-overlay, rgba(255, 255, 255, 0)), var(--bg-overlay, rgba(255, 255, 255, 0))),
+    var(--bg-image, none);
+  background-size:
+    100% 100%,
+    var(--bg-image-size, cover);
+  background-position:
+    center,
+    var(--bg-image-position, center center);
+  background-repeat:
+    no-repeat,
+    no-repeat;
+  background-attachment:
+    fixed,
+    fixed;
 }
 
 .loading-screen {
@@ -1137,16 +1149,6 @@ input:disabled {
   transform: none !important;
 }
 
-[data-theme="pixel"] body,
-[data-theme="pixel"] .planner-shell,
-[data-theme="pixel"] .auth-shell,
-[data-theme="pixel"] .loading-screen {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(56, 224, 154, 0.04) 0px, rgba(56, 224, 154, 0.04) 1px, transparent 1px, transparent 3px),
-    radial-gradient(circle at 1px 1px, var(--bg-dot) 1px, transparent 1px);
-  background-size: 100% 100%, 22px 22px;
-}
-
 [data-theme="pixel"] .hand-title,
 [data-theme="pixel"] .planner-header h1,
 [data-theme="pixel"] .focus-kicker h2,
@@ -1280,4 +1282,114 @@ input:disabled {
 
 [data-theme="brutalist"] .theme-btn {
   border-radius: 0;
+}
+
+/* ---------- BACKGROUND IMAGE THEMES ---------- */
+
+[data-theme="cozy"] {
+  --bg-image: url("/backgrounds/cozy.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(255, 253, 246, 0.22);
+}
+
+[data-theme="comic"] {
+  --bg-image: url("/backgrounds/comic.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(255, 244, 224, 0.12);
+}
+
+[data-theme="scrapbook"] {
+  --bg-image: url("/backgrounds/scrapbook.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(243, 234, 217, 0.16);
+}
+
+[data-theme="pixel"] {
+  --bg-image: url("/backgrounds/pixel.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(15, 17, 21, 0.08);
+}
+
+[data-theme="ghibli"] {
+  --bg-image: url("/backgrounds/ghibli.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(238, 246, 236, 0.12);
+}
+
+[data-theme="cyberpunk"] {
+  --bg-image: url("/backgrounds/cyberpunk.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(5, 8, 18, 0.28);
+}
+
+[data-theme="plant"] {
+  --bg-image: url("/backgrounds/plant.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(242, 243, 233, 0.12);
+}
+
+[data-theme="brutalist"] {
+  --bg-image: url("/backgrounds/brutalist.png");
+  --bg-image-size: cover;
+  --bg-image-position: center center;
+  --bg-overlay: rgba(240, 240, 240, 0.08);
+}
+
+.panel-white,
+.panel-aside,
+.log-panel,
+.auth-card,
+.account-box {
+  backdrop-filter: blur(6px);
+}
+/* ---------- BACKGROUND READABILITY / GLASS PANELS ---------- */
+
+@supports (background: color-mix(in srgb, white 50%, transparent)) {
+  .panel-white,
+  .log-panel,
+  .auth-card,
+  .account-box {
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+  }
+
+  .panel-aside {
+    background: color-mix(in srgb, var(--surface-soft) 86%, transparent);
+  }
+
+  .focus-panel {
+    background: color-mix(in srgb, var(--focus-bg) 92%, transparent);
+  }
+}
+
+/* Optional pixel scanline effect without hiding pixel.png background */
+[data-theme="pixel"] .planner-shell::before,
+[data-theme="pixel"] .auth-shell::before,
+[data-theme="pixel"] .loading-screen::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(56, 224, 154, 0.04) 0px,
+    rgba(56, 224, 154, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.planner-header,
+.bp-main,
+.auth-card,
+.loading-screen > * {
+  position: relative;
+  z-index: 1;
 }
