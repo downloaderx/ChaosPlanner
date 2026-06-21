@@ -279,7 +279,7 @@ function requestDeleteAccount() {
     </button>
 
     <button className="account-btn danger" type="button" onClick={requestDeleteAccount}>
-      <Trash2 size={14} /> Delete request
+      <Trash2 size={14} /> Delete account
     </button>
 
     <button className="account-btn" type="button" onClick={signOut} title={user.email || "Sign out"}>
