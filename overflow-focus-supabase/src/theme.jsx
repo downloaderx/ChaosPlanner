@@ -41,11 +41,6 @@ export function ThemeSwitcher({ theme, onChange }) {
 
   return (
     <div className="theme-switcher" role="group" aria-label="Choose app theme">
-      <button type="button" className="theme-btn random-theme-btn" onClick={randomizeTheme} title="Random theme">
-        <Shuffle size={13} aria-hidden="true" />
-        Random
-      </button>
-
       {THEMES.map((t) => (
         <button
           key={t.id}
@@ -57,6 +52,11 @@ export function ThemeSwitcher({ theme, onChange }) {
           <span aria-hidden="true">{t.emoji}</span> {t.label}
         </button>
       ))}
+
+      <button type="button" className="theme-btn random-theme-btn" onClick={randomizeTheme} title="Random theme">
+        <Shuffle size={13} aria-hidden="true" />
+        Random
+      </button>
     </div>
   );
 }

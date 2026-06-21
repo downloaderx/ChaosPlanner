@@ -727,8 +727,8 @@ input:disabled {
 .sticky-note span,
 .bp-aside-row span {
   flex: 1;
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .bp-thought-btn {
@@ -778,9 +778,9 @@ input:disabled {
 
 .panel-copy p {
   margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.5;
+  font-size: 13px;
+  color: var(--muted-text);
+  line-height: 1.55;
 }
 
 .bp-aside-row {
@@ -788,7 +788,7 @@ input:disabled {
   background: var(--chip-bg);
   border: 1px solid var(--chip-border);
   border-radius: 9px;
-  padding: 9px 11px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -796,6 +796,7 @@ input:disabled {
 
 .bp-aside-row span {
   font-size: 13px;
+  line-height: 1.4;
   color: var(--text-soft);
 }
 
@@ -887,6 +888,135 @@ input:disabled {
   margin: 0;
 }
 
+.pomodoro-widget {
+  position: relative;
+  margin-top: 18px;
+  border: 1px solid var(--focus-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pomodoro-row,
+.pomodoro-presets,
+.pomodoro-player-controls {
+  display: flex;
+  align-items: center;
+}
+
+.pomodoro-row {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pomodoro-player-controls {
+  gap: 6px;
+}
+
+.pomodoro-label {
+  color: var(--focus-label);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.pomodoro-time {
+  color: var(--focus-text);
+  font-family: var(--font-heading);
+  font-size: 22px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pomodoro-help-btn,
+.pomodoro-help-close {
+  border: 1px solid var(--focus-border);
+  background: transparent;
+  color: var(--focus-time);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.pomodoro-help-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.pomodoro-help {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 10px;
+  z-index: 8;
+  width: min(280px, calc(100vw - 48px));
+  background: var(--accent-contrast);
+  color: var(--focus-bg);
+  border-radius: 10px;
+  padding: 10px 34px 10px 11px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pomodoro-help::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 74px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-contrast);
+  transform: rotate(45deg);
+}
+
+.pomodoro-help-close {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  color: var(--focus-bg);
+}
+
+.pomodoro-presets {
+  gap: 6px;
+}
+
+.pomodoro-chip,
+.pomodoro-control {
+  border: 1px solid var(--focus-border);
+  background: transparent;
+  color: var(--focus-soft);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.pomodoro-chip {
+  min-width: 42px;
+  height: 30px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.pomodoro-chip.active,
+.pomodoro-control.primary,
+.pomodoro-control.active {
+  background: var(--accent-contrast);
+  color: var(--focus-bg);
+  border-color: var(--accent-contrast);
+  font-weight: 700;
+}
+
+.pomodoro-control {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+}
+
 .focus-actions {
   gap: 8px;
   margin-top: 18px;
@@ -930,6 +1060,83 @@ input:disabled {
   margin-bottom: 12px;
 }
 
+.daily-goal {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.daily-goal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.daily-goal-row label,
+.daily-goal-count {
+  color: var(--muted-text);
+  font-size: 12px;
+}
+
+.daily-goal-row input {
+  width: 56px;
+  border: 1px solid var(--chip-border);
+  background: var(--chip-bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.daily-goal-progress {
+  height: 8px;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.daily-goal-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.daily-goal-count {
+  margin: 0;
+}
+
+.daily-goal-celebration {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: 10px;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.daily-goal-celebration span {
+  flex: 1;
+}
+
+.daily-goal-celebration button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
 .log-list {
   display: flex;
   flex-direction: column;
@@ -964,6 +1171,7 @@ input:disabled {
   align-items: baseline;
   gap: 8px;
   font-size: 13px;
+  line-height: 1.4;
   border-bottom: 1px dashed var(--bg-dot);
   padding-bottom: 7px;
 }
@@ -978,11 +1186,27 @@ input:disabled {
   flex-shrink: 0;
 }
 
+.sticky-note span,
+.bp-aside-row span,
+.focus-title,
+.focus-empty,
+.log-item span,
+.muted,
+.panel-copy p {
+  font-family: var(--font-body);
+}
+
 .bp-thought-btn:focus-visible,
 .bp-icon-btn:focus-visible,
 .bp-input:focus-visible,
+.daily-goal-row input:focus-visible,
+.daily-goal-celebration button:focus-visible,
 .done-btn:focus-visible,
 .not-now-btn:focus-visible,
+.pomodoro-chip:focus-visible,
+.pomodoro-control:focus-visible,
+.pomodoro-help-btn:focus-visible,
+.pomodoro-help-close:focus-visible,
 .sign-out:focus-visible,
 .auth-form button:focus-visible,
 .mode-switch:focus-visible {
@@ -1328,7 +1552,6 @@ input:disabled {
   line-height: 1.2;
 }
 
-[data-theme="pixel"] .panel-copy h2,
 [data-theme="pixel"] .log-panel h3,
 [data-theme="pixel"] .focus-kicker h2 {
   font-size: 11px;
@@ -1409,6 +1632,13 @@ input:disabled {
 
 [data-theme="cyberpunk"] .pulse-dot.active {
   box-shadow: 0 0 8px var(--accent);
+}
+
+[data-theme="cyberpunk"] button,
+[data-theme="cyberpunk"] input,
+[data-theme="cyberpunk"] .log-item,
+[data-theme="cyberpunk"] .bp-aside-row {
+  letter-spacing: 0.03em;
 }
 
 /* ---------- Plant flourishes ---------- */

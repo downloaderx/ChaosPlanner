@@ -12,12 +12,22 @@ import {
   Trash2,
   UserCircle,
   ChevronDown,
+  Play,
+  Pause,
+  RotateCcw,
+  Lightbulb,
+  Trophy,
+  Music2,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
 
 const ROTATIONS = [-2, 1.5, -1, 2, -1.5, 1, -2.5, 0.5];
 const ACTIVE_CAP = 6;
+const ARCHIVE_LIMIT = 100;
+const POMODORO_FOCUS_SECONDS = 25 * 60;
+const POMODORO_BREAK_SECONDS = 5 * 60;
+const DAILY_GOAL_DEFAULT = 3;
 
 function rotationFromId(id) {
   const str = String(id || "");
@@ -55,6 +65,12 @@ function isFinishedToday(item) {
   );
 }
 
+function formatTimer(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
 export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [thoughts, setThoughts] = useState([]);
   const [setAside, setSetAside] = useState([]);
@@ -67,10 +83,26 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [accountMessage, setAccountMessage] = useState("");
 const [accountError, setAccountError] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
+  const [pomodoroMode, setPomodoroMode] = useState("focus");
+  const [pomodoroSeconds, setPomodoroSeconds] = useState(POMODORO_FOCUS_SECONDS);
+  const [pomodoroRunning, setPomodoroRunning] = useState(false);
+  const [pomodoroHelpOpen, setPomodoroHelpOpen] = useState(false);
+  const [pomodoroMusicEnabled, setPomodoroMusicEnabled] = useState(true);
+  const [dailyGoal, setDailyGoal] = useState(() => {
+    if (typeof window === "undefined") return DAILY_GOAL_DEFAULT;
+    const stored = Number(localStorage.getItem(`daily-goal-${user.id}`));
+    return Number.isFinite(stored) && stored > 0 ? stored : DAILY_GOAL_DEFAULT;
+  });
+  const [goalCelebrationDismissed, setGoalCelebrationDismissed] = useState(false);
   const inputRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const audioNodesRef = useRef(null);
   const accountNotice = accountError || accountMessage;
   const clearedToday = log.filter(isFinishedToday);
-  const archivedLog = log.filter((item) => !isFinishedToday(item));
+  const archivedLog = log.filter((item) => !isFinishedToday(item)).slice(0, ARCHIVE_LIMIT);
+  const dailyGoalProgress = Math.min(clearedToday.length, dailyGoal);
+  const dailyGoalComplete = clearedToday.length >= dailyGoal;
+  const dailyGoalPercent = Math.round((dailyGoalProgress / dailyGoal) * 100);
 
   const runMutation = useCallback(
     async (action) => {
@@ -137,6 +169,139 @@ const [accountError, setAccountError] = useState("");
       setLoaded(true);
     });
   }, [loadItems]);
+
+  useEffect(() => {
+    if (!pomodoroRunning) return undefined;
+
+    const timerId = window.setInterval(() => {
+      setPomodoroSeconds((seconds) => Math.max(seconds - 1, 0));
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [pomodoroRunning]);
+
+  useEffect(() => {
+    if (!pomodoroRunning || pomodoroSeconds !== 0) return;
+
+    setPomodoroRunning(false);
+    setPomodoroMode((mode) => {
+      const nextMode = mode === "focus" ? "break" : "focus";
+      setPomodoroSeconds(nextMode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS);
+      return nextMode;
+    });
+  }, [pomodoroRunning, pomodoroSeconds]);
+
+  useEffect(() => {
+    if (!focus) {
+      setPomodoroRunning(false);
+      stopPomodoroMusic();
+    }
+  }, [focus]);
+
+  useEffect(() => {
+    if (!pomodoroRunning || pomodoroMusicEnabled) return;
+    stopPomodoroMusic();
+  }, [pomodoroMusicEnabled, pomodoroRunning]);
+
+  useEffect(() => {
+    if (!pomodoroRunning) stopPomodoroMusic();
+  }, [pomodoroRunning]);
+
+  useEffect(() => () => stopPomodoroMusic(), []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`daily-goal-${user.id}`, String(dailyGoal));
+    } catch (err) {
+      // localStorage unavailable, goal just won't persist for this session
+    }
+  }, [dailyGoal, user.id]);
+
+  useEffect(() => {
+    if (!dailyGoalComplete) setGoalCelebrationDismissed(false);
+  }, [dailyGoalComplete]);
+
+  function updateDailyGoal(event) {
+    const nextGoal = Number(event.target.value);
+    if (!Number.isFinite(nextGoal)) return;
+    setDailyGoal(Math.max(1, Math.min(20, nextGoal)));
+  }
+
+  function setPomodoroPreset(mode) {
+    setPomodoroMode(mode);
+    setPomodoroRunning(false);
+    setPomodoroSeconds(mode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS);
+  }
+
+  function resetPomodoro() {
+    setPomodoroRunning(false);
+    stopPomodoroMusic();
+    setPomodoroSeconds(pomodoroMode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS);
+  }
+
+  function stopPomodoroMusic() {
+    if (!audioNodesRef.current) return;
+
+    const { oscillators, gain } = audioNodesRef.current;
+    const now = audioContextRef.current?.currentTime || 0;
+
+    try {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      oscillators.forEach((oscillator) => oscillator.stop(now + 0.3));
+    } catch (err) {
+      // Audio nodes may already be stopped; nothing useful to recover here.
+    }
+
+    audioNodesRef.current = null;
+  }
+
+  async function startPomodoroMusic() {
+    if (!pomodoroMusicEnabled || audioNodesRef.current || typeof window === "undefined") return;
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    const context = audioContextRef.current || new AudioContext();
+    audioContextRef.current = context;
+    await context.resume();
+
+    const gain = context.createGain();
+    const filter = context.createBiquadFilter();
+    const frequencies = [196, 246.94, 329.63];
+    const oscillators = frequencies.map((frequency, index) => {
+      const oscillator = context.createOscillator();
+      oscillator.type = index === 1 ? "triangle" : "sine";
+      oscillator.frequency.value = frequency;
+      oscillator.detune.value = index * 4 - 4;
+      oscillator.connect(filter);
+      oscillator.start();
+      return oscillator;
+    });
+
+    filter.type = "lowpass";
+    filter.frequency.value = 760;
+    filter.Q.value = 0.7;
+    gain.gain.value = 0;
+
+    filter.connect(gain);
+    gain.connect(context.destination);
+    gain.gain.linearRampToValueAtTime(0.035, context.currentTime + 0.45);
+
+    audioNodesRef.current = { oscillators, gain };
+  }
+
+  async function togglePomodoroRunning() {
+    const shouldRun = !pomodoroRunning;
+
+    if (shouldRun) {
+      await startPomodoroMusic();
+    } else {
+      stopPomodoroMusic();
+    }
+
+    setPomodoroRunning(shouldRun);
+  }
 
   function addThought(event) {
     event?.preventDefault?.();
@@ -483,6 +648,81 @@ function requestDeleteAccount() {
                   <Clock size={12} /> on this for {timeAgo(focus.startedAt)}
                 </p>
               )}
+
+              <div className="pomodoro-widget" aria-label="Pomodoro timer">
+                <div className="pomodoro-row">
+                  <div className="pomodoro-player-controls">
+                    <button
+                      type="button"
+                      className="pomodoro-control primary"
+                      onClick={togglePomodoroRunning}
+                      disabled={!focus}
+                      aria-label={pomodoroRunning ? "Pause pomodoro" : "Start pomodoro"}
+                    >
+                      {pomodoroRunning ? <Pause size={14} /> : <Play size={14} />}
+                    </button>
+                    <button type="button" className="pomodoro-control" onClick={resetPomodoro} aria-label="Reset pomodoro">
+                      <RotateCcw size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className={pomodoroMusicEnabled ? "pomodoro-control active" : "pomodoro-control"}
+                      onClick={() => setPomodoroMusicEnabled((enabled) => !enabled)}
+                      aria-pressed={pomodoroMusicEnabled}
+                      aria-label={pomodoroMusicEnabled ? "Turn pomodoro music off" : "Turn pomodoro music on"}
+                    >
+                      <Music2 size={14} />
+                    </button>
+                  </div>
+
+                  <div className="pomodoro-presets" role="group" aria-label="Pomodoro mode">
+                    <button
+                      type="button"
+                      className={pomodoroMode === "focus" ? "pomodoro-chip active" : "pomodoro-chip"}
+                      onClick={() => setPomodoroPreset("focus")}
+                      aria-pressed={pomodoroMode === "focus"}
+                    >
+                      25
+                    </button>
+                    <button
+                      type="button"
+                      className={pomodoroMode === "break" ? "pomodoro-chip active" : "pomodoro-chip"}
+                      onClick={() => setPomodoroPreset("break")}
+                      aria-pressed={pomodoroMode === "break"}
+                    >
+                      5
+                    </button>
+                  </div>
+
+                  <span className="pomodoro-label">{pomodoroMode === "focus" ? "Focus" : "Break"}</span>
+
+                  <button
+                    type="button"
+                    className="pomodoro-help-btn"
+                    onClick={() => setPomodoroHelpOpen((open) => !open)}
+                    aria-expanded={pomodoroHelpOpen}
+                    aria-label="How pomodoro works"
+                  >
+                    <Lightbulb size={14} />
+                  </button>
+
+                  <span className="pomodoro-time">{formatTimer(pomodoroSeconds)}</span>
+
+                  {pomodoroHelpOpen && (
+                    <div className="pomodoro-help" role="note">
+                      <span>Work on one thing for 25 minutes, then take a 5 minute break. Repeat when you're ready.</span>
+                      <button
+                        type="button"
+                        className="pomodoro-help-close"
+                        onClick={() => setPomodoroHelpOpen(false)}
+                        aria-label="Close pomodoro help"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {focus && (
@@ -499,6 +739,43 @@ function requestDeleteAccount() {
 
           <div className="panel panel-white log-panel">
             <h3>Cleared today</h3>
+            <div className="daily-goal">
+              <div className="daily-goal-row">
+                <label htmlFor="daily-goal-input">Daily goal</label>
+                <input
+                  id="daily-goal-input"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={dailyGoal}
+                  onChange={updateDailyGoal}
+                  aria-label="Daily cleared goal"
+                />
+              </div>
+
+              <div className="daily-goal-progress" aria-label={`${dailyGoalProgress} of ${dailyGoal} cleared today`}>
+                <span style={{ width: `${dailyGoalPercent}%` }} />
+              </div>
+
+              <p className="daily-goal-count">
+                {dailyGoalProgress}/{dailyGoal} cleared
+              </p>
+
+              {dailyGoalComplete && !goalCelebrationDismissed && (
+                <div className="daily-goal-celebration" role="status">
+                  <Trophy size={16} />
+                  <span>Daily goal complete</span>
+                  <button
+                    type="button"
+                    onClick={() => setGoalCelebrationDismissed(true)}
+                    aria-label="Dismiss daily goal celebration"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="bp-scroll log-list">
               {clearedToday.length === 0 ? (
                 <p className="muted roomy">Nothing cleared today yet. This resets at the end of the day.</p>
