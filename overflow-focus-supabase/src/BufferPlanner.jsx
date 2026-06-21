@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, X, ArrowRight, ArrowUp, Check, Clock, Sparkles, LogOut, KeyRound, Trash2 } from "lucide-react";
+import {
+  Plus,
+  X,
+  ArrowRight,
+  ArrowUp,
+  Check,
+  Clock,
+  Sparkles,
+  LogOut,
+  KeyRound,
+  Trash2,
+  UserCircle,
+  ChevronDown,
+} from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
 
@@ -41,6 +54,7 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [busy, setBusy] = useState(false);
   const [accountMessage, setAccountMessage] = useState("");
 const [accountError, setAccountError] = useState("");
+  const [accountOpen, setAccountOpen] = useState(false);
   const inputRef = useRef(null);
 
   const runMutation = useCallback(
@@ -239,6 +253,8 @@ function requestDeleteAccount() {
     await supabase.auth.signOut();
   }
 
+  const accountLabel = user.email || "Account";
+
   function timeAgo(timestamp) {
     const time = new Date(timestamp).getTime();
     if (!time) return "some time ago";
@@ -263,30 +279,49 @@ function requestDeleteAccount() {
               
   <h1>Chaos Planner</h1>
   <p>Catch every passing thought. Keep only a handful live. Work on just one at a time.</p>
-  <ThemeSwitcher theme={theme} onChange={onThemeChange} />
+  <div className="header-controls">
+    <ThemeSwitcher theme={theme} onChange={onThemeChange} />
+  </div>
 </div>
             </div>
+
+          <div className="header-actions">
+            <div className="account-menu">
+              <button
+                className="theme-btn account-trigger"
+                type="button"
+                onClick={() => setAccountOpen((open) => !open)}
+                aria-expanded={accountOpen}
+                aria-haspopup="menu"
+                title={accountLabel}
+              >
+                <UserCircle size={14} aria-hidden="true" />
+                <span className="account-trigger-label">{accountLabel}</span>
+                <ChevronDown size={13} aria-hidden="true" />
+              </button>
+
+              {accountOpen && (
+                <div className="account-dropdown" role="menu">
+                  <div className="account-dropdown-email" title={accountLabel}>
+                    {accountLabel}
+                  </div>
+
+                  <button className="account-menu-item" type="button" onClick={sendPasswordReset} role="menuitem">
+                    <KeyRound size={14} /> Reset password
+                  </button>
+
+                  <button className="account-menu-item danger" type="button" onClick={requestDeleteAccount} role="menuitem">
+                    <Trash2 size={14} /> Delete account
+                  </button>
+
+                  <button className="account-menu-item" type="button" onClick={signOut} role="menuitem">
+                    <LogOut size={14} /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-
-         <div className="account-box">
-  <div className="account-email" title={user.email || "Account"}>
-    {user.email || "Signed in"}
-  </div>
-
-  <div className="account-actions">
-    <button className="account-btn" type="button" onClick={sendPasswordReset}>
-      <KeyRound size={14} /> Reset password
-    </button>
-
-    <button className="account-btn danger" type="button" onClick={requestDeleteAccount}>
-      <Trash2 size={14} /> Delete account
-    </button>
-
-    <button className="account-btn" type="button" onClick={signOut} title={user.email || "Sign out"}>
-      <LogOut size={14} /> Sign out
-    </button>
-  </div>
-</div>
+          </div>
 
         {error && <p className="error-text">{error}</p>}
         {accountError && <p className="error-text">{accountError}</p>}
