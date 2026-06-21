@@ -43,6 +43,18 @@ function sortNewestFirst(a, b, field = "startedAt") {
   return new Date(b[field] || 0).getTime() - new Date(a[field] || 0).getTime();
 }
 
+function isFinishedToday(item) {
+  const finished = new Date(item.finishedAt);
+  if (!finished.getTime()) return false;
+
+  const today = new Date();
+  return (
+    finished.getFullYear() === today.getFullYear() &&
+    finished.getMonth() === today.getMonth() &&
+    finished.getDate() === today.getDate()
+  );
+}
+
 export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [thoughts, setThoughts] = useState([]);
   const [setAside, setSetAside] = useState([]);
@@ -56,6 +68,9 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
 const [accountError, setAccountError] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const inputRef = useRef(null);
+  const accountNotice = accountError || accountMessage;
+  const clearedToday = log.filter(isFinishedToday);
+  const archivedLog = log.filter((item) => !isFinishedToday(item));
 
   const runMutation = useCallback(
     async (action) => {
@@ -240,6 +255,7 @@ async function sendPasswordReset() {
   }
 
   setAccountMessage("Password reset link sent to your email.");
+  setAccountOpen(false);
 }
 
 function requestDeleteAccount() {
@@ -247,6 +263,7 @@ function requestDeleteAccount() {
   setAccountMessage(
     "Account deletion is manual in this test version. Contact the app owner if you want your account removed."
   );
+  setAccountOpen(false);
 }
 
   async function signOut() {
@@ -275,7 +292,7 @@ function requestDeleteAccount() {
             <span className="brand-mark">
               <Sparkles size={15} color="#FFE066" />
             </span>
-            <div>
+            <div className="header-copy">
               
   <h1>Chaos Planner</h1>
   <p>Catch every passing thought. Keep only a handful live. Work on just one at a time.</p>
@@ -324,9 +341,24 @@ function requestDeleteAccount() {
           </div>
 
         {error && <p className="error-text">{error}</p>}
-        {accountError && <p className="error-text">{accountError}</p>}
-{accountMessage && <p className="account-message">{accountMessage}</p>}
       </header>
+
+      {accountNotice && (
+        <div className={`account-toast${accountError ? " error" : ""}`} role="status" aria-live="polite">
+          <span>{accountNotice}</span>
+          <button
+            className="account-toast-close"
+            type="button"
+            onClick={() => {
+              setAccountMessage("");
+              setAccountError("");
+            }}
+            aria-label="Dismiss message"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <main className="bp-main">
         <section aria-label="Thought overflow" className="panel panel-white">
@@ -468,10 +500,27 @@ function requestDeleteAccount() {
           <div className="panel panel-white log-panel">
             <h3>Cleared today</h3>
             <div className="bp-scroll log-list">
-              {log.length === 0 ? (
-                <p className="muted roomy">Nothing finished yet — this fills up as you close things out.</p>
+              {clearedToday.length === 0 ? (
+                <p className="muted roomy">Nothing cleared today yet. This resets at the end of the day.</p>
               ) : (
-                log.map((item) => (
+                clearedToday.map((item) => (
+                  <div key={item.id + item.finishedAt} className="log-item">
+                    <Check size={12} color="#5C8753" />
+                    <span>{item.text}</span>
+                    <small>{timeAgo(item.finishedAt)}</small>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="panel panel-white log-panel archive-panel">
+            <h3>Archive</h3>
+            <div className="bp-scroll archive-list">
+              {archivedLog.length === 0 ? (
+                <p className="muted roomy">Older cleared items will collect here after today.</p>
+              ) : (
+                archivedLog.map((item) => (
                   <div key={item.id + item.finishedAt} className="log-item">
                     <Check size={12} color="#5C8753" />
                     <span>{item.text}</span>

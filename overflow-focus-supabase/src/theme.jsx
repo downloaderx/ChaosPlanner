@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Shuffle } from "lucide-react";
 
 export const THEMES = [
   { id: "cozy", label: "Cozy", emoji: "🌿" },
@@ -32,8 +33,19 @@ export function useTheme() {
 }
 
 export function ThemeSwitcher({ theme, onChange }) {
+  function randomizeTheme() {
+    const availableThemes = THEMES.filter((t) => t.id !== theme);
+    const nextTheme = availableThemes[Math.floor(Math.random() * availableThemes.length)] || THEMES[0];
+    onChange(nextTheme.id);
+  }
+
   return (
     <div className="theme-switcher" role="group" aria-label="Choose app theme">
+      <button type="button" className="theme-btn random-theme-btn" onClick={randomizeTheme} title="Random theme">
+        <Shuffle size={13} aria-hidden="true" />
+        Random
+      </button>
+
       {THEMES.map((t) => (
         <button
           key={t.id}
