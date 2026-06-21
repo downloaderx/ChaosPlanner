@@ -1,5 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Caveat:wght@600;700&family=Bangers&family=Permanent+Marker&family=Press+Start+2P&family=VT323&display=swap");
-
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Caveat:wght@600;700&family=Bangers&family=Permanent+Marker&family=Press+Start+2P&family=VT323&family=Quicksand:wght@500;700&family=Orbitron:wght@500;700;900&family=Archivo+Black&display=swap");
 /* ---------- THEME: cozy (default) ---------- */
 :root,
 [data-theme="cozy"] {
@@ -33,6 +32,8 @@
   --btn-outline-green: #c9dcc0;
   --scrollbar: #dce3c4;
   --shadow-tint: #f1eddb;
+  --bg-image: none;
+  --bg-image-size: auto;
 
   --font-heading: "Space Grotesk", sans-serif;
   --font-body: "IBM Plex Mono", monospace;
@@ -171,8 +172,198 @@
   --panel-border-width: 2px;
   --panel-border-style: solid;
   --card-rotate-enabled: 0;
+ 
 }
 
+/* ---------- THEME: ghibli (soft anime / cozy clouds) ---------- */
+[data-theme="ghibli"] {
+  --bg: #eef6ec;
+  --bg-dot: #d7e8d0;
+  --text: #2f3a2a;
+  --text-soft: #4d5c45;
+  --border: #c7dcc0;
+  --border-dashed: #c7dcc0;
+  --surface: #fdfdf6;
+  --surface-soft: #e6f0e0;
+  --muted-text: #7c8f72;
+  --muted: #93a587;
+  --muted-light: #b7c6ad;
+  --accent: #6f9c5e;
+  --accent-contrast: #fffdf0;
+  --danger: #d97a5f;
+  --danger-soft: #b8624a;
+  --note-bg: #fff6da;
+  --note-border: #f0dfa0;
+  --chip-bg: #dceede;
+  --chip-border: #c2dcc4;
+  --focus-bg: #4f7a52;
+  --focus-text: #fdfdf0;
+  --focus-label: #cfe8c8;
+  --focus-soft: #dcebd4;
+  --focus-time: #e8d98a;
+  --focus-border: #3c5e3f;
+  --dot-inactive: #8caf81;
+  --heading-muted: #6f8763;
+  --btn-outline-green: #c2dcc4;
+  --scrollbar: #c2dcc4;
+  --shadow-tint: #dcebd4;
+
+  --font-heading: "Quicksand", "Space Grotesk", sans-serif;
+  --font-body: "Quicksand", "IBM Plex Mono", monospace;
+  --font-hand: "Caveat", cursive;
+  --radius-panel: 26px;
+  --radius-card: 20px;
+  --panel-border-width: 1px;
+  --panel-border-style: solid;
+  --bg-image:
+    radial-gradient(ellipse 320px 140px at 8% 12%, rgba(255, 255, 255, 0.85), transparent 70%),
+    radial-gradient(ellipse 260px 110px at 80% 8%, rgba(255, 255, 255, 0.7), transparent 70%),
+    radial-gradient(ellipse 380px 160px at 60% 92%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 220px 100px at 15% 80%, rgba(255, 255, 255, 0.6), transparent 70%);
+}
+
+/* ---------- THEME: cyberpunk (neon grid city) ---------- */
+[data-theme="cyberpunk"] {
+  --bg: #0b0716;
+  --bg-dot: #1e1433;
+  --text: #f4eaff;
+  --text-soft: #d2b8ff;
+  --border: #ff2fd0;
+  --border-dashed: #ff2fd0;
+  --surface: #150f29;
+  --surface-soft: #100b22;
+  --muted-text: #8a7bb8;
+  --muted: #75699e;
+  --muted-light: #5b5184;
+  --accent: #00f0ff;
+  --accent-contrast: #0b0716;
+  --danger: #ff3366;
+  --danger-soft: #cc1f4d;
+  --note-bg: #1e1438;
+  --note-border: #ff2fd0;
+  --chip-bg: #1e1433;
+  --chip-border: #3a2a5c;
+  --focus-bg: #170c2e;
+  --focus-text: #f4eaff;
+  --focus-label: #00f0ff;
+  --focus-soft: #2a1c4a;
+  --focus-time: #ff2fd0;
+  --focus-border: #00f0ff;
+  --dot-inactive: #3a2a5c;
+  --heading-muted: #d2b8ff;
+  --btn-outline-green: #00f0ff;
+  --scrollbar: #ff2fd0;
+  --shadow-tint: #000000;
+
+  --font-heading: "Orbitron", "Space Grotesk", sans-serif;
+  --font-body: "IBM Plex Mono", monospace;
+  --font-hand: "Orbitron", cursive;
+  --radius-panel: 4px;
+  --radius-card: 2px;
+  --panel-border-width: 1px;
+  --panel-border-style: solid;
+  --bg-image:
+    linear-gradient(rgba(255, 47, 208, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.1) 1px, transparent 1px),
+    radial-gradient(ellipse 600px 300px at 50% 110%, rgba(255, 47, 208, 0.18), transparent 70%);
+  --bg-image-size: 38px 38px, 38px 38px, 100% 100%;
+}
+
+/* ---------- THEME: plant (organic growth) ---------- */
+[data-theme="plant"] {
+  --bg: #f2f3e9;
+  --bg-dot: #dfe3c9;
+  --text: #283324;
+  --text-soft: #45533c;
+  --border: #c4cfa9;
+  --border-dashed: #c4cfa9;
+  --surface: #fbfbf3;
+  --surface-soft: #e9ecd9;
+  --muted-text: #76835f;
+  --muted: #8c9772;
+  --muted-light: #b3bb98;
+  --accent: #4f7942;
+  --accent-contrast: #f3f6e5;
+  --danger: #b5562f;
+  --danger-soft: #94431f;
+  --note-bg: #eef2da;
+  --note-border: #c9d49e;
+  --chip-bg: #e3e9cb;
+  --chip-border: #c4cfa9;
+  --focus-bg: #2f4a28;
+  --focus-text: #f3f6e5;
+  --focus-label: #b9d196;
+  --focus-soft: #3f5c37;
+  --focus-time: #d9c870;
+  --focus-border: #1f3219;
+  --dot-inactive: #6c8a55;
+  --heading-muted: #6c7a55;
+  --btn-outline-green: #c4cfa9;
+  --scrollbar: #c4cfa9;
+  --shadow-tint: #e3e9cb;
+
+  --font-heading: "Quicksand", "Space Grotesk", sans-serif;
+  --font-body: "IBM Plex Mono", monospace;
+  --font-hand: "Caveat", cursive;
+  --radius-panel: 22px;
+  --radius-card: 999px;
+  --panel-border-width: 1px;
+  --panel-border-style: solid;
+  --bg-image:
+    radial-gradient(circle 140px at 10% 15%, rgba(79, 121, 66, 0.08), transparent 70%),
+    radial-gradient(circle 180px at 90% 25%, rgba(79, 121, 66, 0.07), transparent 70%),
+    radial-gradient(circle 200px at 30% 90%, rgba(79, 121, 66, 0.08), transparent 70%),
+    radial-gradient(circle 160px at 85% 88%, rgba(79, 121, 66, 0.06), transparent 70%);
+}
+
+/* ---------- THEME: brutalist (raw print) ---------- */
+[data-theme="brutalist"] {
+  --bg: #f0f0f0;
+  --bg-dot: #d8d8d8;
+  --text: #0a0a0a;
+  --text-soft: #0a0a0a;
+  --border: #0a0a0a;
+  --border-dashed: #0a0a0a;
+  --surface: #ffffff;
+  --surface-soft: #e8e8e8;
+  --muted-text: #4a4a4a;
+  --muted: #5a5a5a;
+  --muted-light: #8a8a8a;
+  --accent: #ff4400;
+  --accent-contrast: #ffffff;
+  --danger: #cc0000;
+  --danger-soft: #990000;
+  --note-bg: #ffffff;
+  --note-border: #0a0a0a;
+  --chip-bg: #ffffff;
+  --chip-border: #0a0a0a;
+  --focus-bg: #0a0a0a;
+  --focus-text: #ffffff;
+  --focus-label: #ff4400;
+  --focus-soft: #2a2a2a;
+  --focus-time: #ff4400;
+  --focus-border: #0a0a0a;
+  --dot-inactive: #5a5a5a;
+  --heading-muted: #0a0a0a;
+  --btn-outline-green: #0a0a0a;
+  --scrollbar: #0a0a0a;
+  --shadow-tint: #0a0a0a;
+
+  --font-heading: "Archivo Black", "Space Grotesk", sans-serif;
+  --font-body: "IBM Plex Mono", monospace;
+  --font-hand: "Archivo Black", cursive;
+  --radius-panel: 0px;
+  --radius-card: 0px;
+  --panel-border-width: 3px;
+  --panel-border-style: solid;
+  --bg-image: repeating-linear-gradient(
+    45deg,
+    rgba(10, 10, 10, 0.04) 0px,
+    rgba(10, 10, 10, 0.04) 1px,
+    transparent 1px,
+    transparent 14px
+  );
+}
 * {
   box-sizing: border-box;
 }
@@ -201,8 +392,9 @@ input:disabled {
 .planner-shell {
   min-height: 100vh;
   background: var(--bg);
-  background-image: radial-gradient(circle at 1px 1px, var(--bg-dot) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-image: var(--bg-image, none), radial-gradient(circle at 1px 1px, var(--bg-dot) 1px, transparent 1px);
+  background-size: var(--bg-image-size, auto), 22px 22px;
+  background-attachment: fixed, scroll;
 }
 
 .loading-screen {
@@ -980,5 +1172,112 @@ input:disabled {
 [data-theme="pixel"] .promote-btn,
 [data-theme="pixel"] .done-btn,
 [data-theme="pixel"] .small-outline-btn.green {
+  border-radius: 0;
+}
+
+/* ---------- Ghibli flourishes ---------- */
+[data-theme="ghibli"] .panel-white,
+[data-theme="ghibli"] .panel-aside,
+[data-theme="ghibli"] .focus-panel,
+[data-theme="ghibli"] .auth-card,
+[data-theme="ghibli"] .account-box {
+  box-shadow: 0 16px 32px -22px rgba(79, 122, 82, 0.45);
+}
+
+[data-theme="ghibli"] .sticky-note,
+[data-theme="ghibli"] .bp-aside-row {
+  box-shadow: 0 6px 14px -10px rgba(79, 122, 82, 0.35);
+}
+
+[data-theme="ghibli"] .bp-icon-btn,
+[data-theme="ghibli"] .promote-btn {
+  border-radius: 999px;
+}
+
+[data-theme="ghibli"] .hand-title {
+  font-size: 30px;
+}
+
+/* ---------- Cyberpunk flourishes ---------- */
+[data-theme="cyberpunk"] .planner-header h1,
+[data-theme="cyberpunk"] .hand-title,
+[data-theme="cyberpunk"] .focus-title {
+  text-shadow: 0 0 8px var(--accent), 0 0 18px var(--border);
+}
+
+[data-theme="cyberpunk"] .panel-white,
+[data-theme="cyberpunk"] .panel-aside,
+[data-theme="cyberpunk"] .auth-card,
+[data-theme="cyberpunk"] .account-box {
+  box-shadow: 0 0 0 1px var(--border), 0 0 24px -8px var(--accent);
+}
+
+[data-theme="cyberpunk"] .focus-panel {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 30px -6px var(--border);
+}
+
+[data-theme="cyberpunk"] .bp-icon-btn,
+[data-theme="cyberpunk"] .promote-btn,
+[data-theme="cyberpunk"] .done-btn {
+  box-shadow: 0 0 10px var(--accent);
+}
+
+[data-theme="cyberpunk"] .pulse-dot.active {
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* ---------- Plant flourishes ---------- */
+[data-theme="plant"] .bp-icon-btn,
+[data-theme="plant"] .promote-btn,
+[data-theme="plant"] .small-outline-btn.green {
+  border-radius: 999px;
+}
+
+[data-theme="plant"] .sticky-note,
+[data-theme="plant"] .bp-aside-row {
+  border-radius: 0 18px 18px 18px;
+}
+
+[data-theme="plant"] .focus-panel {
+  background-image: radial-gradient(circle 200px at 90% 110%, rgba(255, 255, 255, 0.06), transparent 70%);
+}
+
+[data-theme="plant"] .hand-title {
+  color: var(--accent);
+}
+
+/* ---------- Brutalist flourishes ---------- */
+[data-theme="brutalist"] .panel-white,
+[data-theme="brutalist"] .panel-aside,
+[data-theme="brutalist"] .focus-panel,
+[data-theme="brutalist"] .auth-card,
+[data-theme="brutalist"] .account-box {
+  box-shadow: none !important;
+}
+
+[data-theme="brutalist"] .sticky-note,
+[data-theme="brutalist"] .bp-aside-row {
+  box-shadow: none;
+  border: 2px solid var(--border);
+}
+
+[data-theme="brutalist"] .hand-title {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  font-size: 22px;
+}
+
+[data-theme="brutalist"] .planner-header h1 {
+  text-transform: uppercase;
+}
+
+[data-theme="brutalist"] .bp-icon-btn,
+[data-theme="brutalist"] .promote-btn,
+[data-theme="brutalist"] .done-btn,
+[data-theme="brutalist"] .small-outline-btn.green {
+  border-radius: 0;
+}
+
+[data-theme="brutalist"] .theme-btn {
   border-radius: 0;
 }

@@ -5,6 +5,10 @@ export const THEMES = [
   { id: "comic", label: "Comic", emoji: "💥" },
   { id: "scrapbook", label: "Scrapbook", emoji: "✂️" },
   { id: "pixel", label: "Pixel", emoji: "👾" },
+  { id: "ghibli", label: "Ghibli", emoji: "☁️" },
+  { id: "cyberpunk", label: "Cyberpunk", emoji: "🌆" },
+  { id: "plant", label: "Plant", emoji: "🪴" },
+  { id: "brutalist", label: "Brutalist", emoji: "▪️" },
 ];
 
 const STORAGE_KEY = "overflow-focus-theme";
