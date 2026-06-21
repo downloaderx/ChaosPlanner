@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import BufferPlanner from "./BufferPlanner";
+import { useTheme } from "./theme.jsx";
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
+const [theme, setTheme] = useTheme();
 
   useEffect(() => {
     let isMounted = true;
@@ -49,20 +51,22 @@ export default function App() {
   }
 
   if (recoveryMode) {
-    return (
-      <Auth
-        recoveryMode
-        onRecoveryComplete={() => {
-          setRecoveryMode(false);
-          window.history.replaceState({}, document.title, window.location.origin);
-        }}
-      />
-    );
-  }
+  return (
+    <Auth
+      recoveryMode
+      theme={theme}
+      onThemeChange={setTheme}
+      onRecoveryComplete={() => {
+        setRecoveryMode(false);
+        window.history.replaceState({}, document.title, window.location.origin);
+      }}
+    />
+  );
+}
 
-  if (!session?.user) {
-    return <Auth />;
-  }
+if (!session?.user) {
+  return <Auth theme={theme} onThemeChange={setTheme} />;
+}
 
-  return <BufferPlanner user={session.user} />;
+return <BufferPlanner user={session.user} theme={theme} onThemeChange={setTheme} />;
 }

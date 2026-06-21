@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, X, ArrowRight, ArrowUp, Check, Clock, Sparkles, LogOut, KeyRound, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { ThemeSwitcher } from "./theme.jsx";
 
 const ROTATIONS = [-2, 1.5, -1, 2, -1.5, 1, -2.5, 0.5];
 const ACTIVE_CAP = 6;
@@ -29,7 +30,7 @@ function sortNewestFirst(a, b, field = "startedAt") {
   return new Date(b[field] || 0).getTime() - new Date(a[field] || 0).getTime();
 }
 
-export default function BufferPlanner({ user }) {
+export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [thoughts, setThoughts] = useState([]);
   const [setAside, setSetAside] = useState([]);
   const [focus, setFocus] = useState(null);
@@ -259,10 +260,12 @@ function requestDeleteAccount() {
               <Sparkles size={15} color="#FFE066" />
             </span>
             <div>
-              <h1>Overflow & Focus</h1>
-              <p>Catch every passing thought. Keep only a handful live. Work on just one at a time.</p>
+              
+  <h1>Chaos Planner</h1>
+  <p>Catch every passing thought. Keep only a handful live. Work on just one at a time.</p>
+  <ThemeSwitcher theme={theme} onChange={onThemeChange} />
+</div>
             </div>
-          </div>
           </div>
 
          <div className="account-box">

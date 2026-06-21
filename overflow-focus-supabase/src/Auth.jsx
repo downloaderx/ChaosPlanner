@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { ThemeSwitcher } from "./theme.jsx";
 
 function getPasswordErrors(password) {
   const errors = [];
@@ -14,7 +15,7 @@ function getPasswordErrors(password) {
   return errors;
 }
 
-export default function Auth({ recoveryMode = false, onRecoveryComplete }) {
+export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, onThemeChange }) {
   const [mode, setMode] = useState(recoveryMode ? "update-password" : "sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -181,6 +182,8 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete }) {
         <h1>{getTitle()}</h1>
 
         <p className="auth-subtitle">{getSubtitle()}</p>
+
+        {theme && onThemeChange && <ThemeSwitcher theme={theme} onChange={onThemeChange} />}
 
         <form onSubmit={handleSubmit} className="auth-form">
           {mode !== "update-password" && (
