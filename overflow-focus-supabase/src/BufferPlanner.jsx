@@ -4,6 +4,7 @@ import {
   X,
   ArrowRight,
   ArrowUp,
+  ArrowLeft,
   Check,
   Clock,
   LogOut,
@@ -18,6 +19,7 @@ import {
   Trophy,
   Music2,
   Info,
+  Hash,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -27,16 +29,9 @@ const ACTIVE_CAP = 6;
 const ARCHIVE_LIMIT = 100;
 const POMODORO_FOCUS_SECONDS = 25 * 60;
 const POMODORO_BREAK_SECONDS = 5 * 60;
+const POMODORO_AUDIO_SRC = "/audio/pomodoro.mp3";
 const DAILY_GOAL_DEFAULT = 3;
 const POMODORO_STORAGE_VERSION = 1;
-const HEADER_TAGLINES = [
-  "Catch every passing thought. Keep only a handful live. Work on just one at a time.",
-  "Park the brain confetti here. Pick one piece to actually deal with.",
-  "For runaway ideas, half-started plans, and the one thing you meant to be doing.",
-  "Dump the mental tabs here. Keep one open on purpose.",
-  "A soft landing zone for thoughts that arrive before you asked them to.",
-  "Collect the noise. Choose the signal. Let the rest wait politely-ish.",
-];
 
 function rotationFromId(id) {
   const str = String(id || "");
@@ -52,10 +47,23 @@ function normalizeItem(row) {
     id: row.id,
     text: row.text,
     column: row.column,
+    projectTag: row.project_tag || "",
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     rot: rotationFromId(row.id),
   };
+}
+
+function normalizeProjectTag(value) {
+  return value.trim().replace(/^#+/, "").replace(/\s+/g, " ").slice(0, 40);
+}
+
+function isMissingProjectTagColumn(error) {
+  return (
+    error?.code === "42703" ||
+    error?.message?.toLowerCase().includes("project_tag") ||
+    error?.details?.toLowerCase().includes("project_tag")
+  );
 }
 
 function sortNewestFirst(a, b, field = "startedAt") {
@@ -130,8 +138,12 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [focus, setFocus] = useState(null);
   const [log, setLog] = useState([]);
   const [draft, setDraft] = useState("");
+  const [draftProject, setDraftProject] = useState("");
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [editingProjectValue, setEditingProjectValue] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
+  const [projectTagAvailable, setProjectTagAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
   const [accountMessage, setAccountMessage] = useState("");
 const [accountError, setAccountError] = useState("");
@@ -144,7 +156,6 @@ const [accountError, setAccountError] = useState("");
   const [pomodoroMusicEnabled, setPomodoroMusicEnabled] = useState(true);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [appInfoOpen, setAppInfoOpen] = useState(false);
-  const [headerTagline] = useState(() => HEADER_TAGLINES[Math.floor(Math.random() * HEADER_TAGLINES.length)]);
   const [dailyGoal, setDailyGoal] = useState(() => {
     if (typeof window === "undefined") return DAILY_GOAL_DEFAULT;
     const stored = Number(localStorage.getItem(`daily-goal-${user.id}`));
@@ -152,8 +163,10 @@ const [accountError, setAccountError] = useState("");
   });
   const [goalCelebrationDismissed, setGoalCelebrationDismissed] = useState(false);
   const inputRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const audioNodesRef = useRef(null);
+  const pomodoroAudioRef = useRef(null);
+  const audioStartTokenRef = useRef(0);
+  const pomodoroRunningRef = useRef(pomodoroRunning);
+  const pomodoroMusicEnabledRef = useRef(pomodoroMusicEnabled);
   const accountNotice = accountError || accountMessage;
   const clearedToday = log.filter(isFinishedToday);
   const archivedLog = log.filter((item) => !isFinishedToday(item)).slice(0, ARCHIVE_LIMIT);
@@ -161,6 +174,21 @@ const [accountError, setAccountError] = useState("");
   const dailyGoalComplete = clearedToday.length >= dailyGoal;
   const dailyGoalPercent = Math.round((dailyGoalProgress / dailyGoal) * 100);
   const breakUnlocked = pomodoroMode === "break";
+  const allVisibleItems = [...thoughts, ...setAside, ...(focus ? [focus] : []), ...log];
+  const projectOptions = Array.from(new Set(allVisibleItems.map((item) => item.projectTag).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+  const projectStats = Object.entries(
+    log.reduce((counts, item) => {
+      if (!item.projectTag) return counts;
+      counts[item.projectTag] = (counts[item.projectTag] || 0) + 1;
+      return counts;
+    }, {})
+  )
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 5);
+  const totalProjectTaggedItems = projectStats.reduce((sum, [, count]) => sum + count, 0);
+  const maxProjectCount = projectStats[0]?.[1] || 0;
 
   const runMutation = useCallback(
     async (action) => {
@@ -181,11 +209,26 @@ const [accountError, setAccountError] = useState("");
     async ({ enforceCap = true } = {}) => {
       setError(null);
 
-      const { data, error: loadError } = await supabase
+      let { data, error: loadError } = await supabase
         .from("items")
-        .select("id,user_id,column,text,started_at,finished_at")
+        .select("id,user_id,column,text,project_tag,started_at,finished_at")
         .eq("user_id", user.id)
         .order("started_at", { ascending: false });
+
+      if (loadError && isMissingProjectTagColumn(loadError)) {
+        setProjectTagAvailable(false);
+
+        const fallback = await supabase
+          .from("items")
+          .select("id,user_id,column,text,started_at,finished_at")
+          .eq("user_id", user.id)
+          .order("started_at", { ascending: false });
+
+        data = fallback.data;
+        loadError = fallback.error;
+      } else if (!loadError) {
+        setProjectTagAvailable(true);
+      }
 
       if (loadError) throw loadError;
 
@@ -227,6 +270,14 @@ const [accountError, setAccountError] = useState("");
       setLoaded(true);
     });
   }, [loadItems]);
+
+  useEffect(() => {
+    pomodoroRunningRef.current = pomodoroRunning;
+  }, [pomodoroRunning]);
+
+  useEffect(() => {
+    pomodoroMusicEnabledRef.current = pomodoroMusicEnabled;
+  }, [pomodoroMusicEnabled]);
 
   useEffect(() => {
     if (!pomodoroRunning) return undefined;
@@ -325,89 +376,189 @@ const [accountError, setAccountError] = useState("");
   }
 
   function stopPomodoroMusic() {
-    if (!audioNodesRef.current) return;
+    audioStartTokenRef.current += 1;
 
-    const { oscillators, gain } = audioNodesRef.current;
-    const now = audioContextRef.current?.currentTime || 0;
+    const audio = pomodoroAudioRef.current;
+    if (!audio) return;
 
     try {
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.25);
-      oscillators.forEach((oscillator) => oscillator.stop(now + 0.3));
+      audio.pause();
     } catch (err) {
-      // Audio nodes may already be stopped; nothing useful to recover here.
+      // Audio may already be paused; nothing useful to recover here.
     }
-
-    audioNodesRef.current = null;
   }
 
-  async function startPomodoroMusic() {
-    if (!pomodoroMusicEnabled || audioNodesRef.current || typeof window === "undefined") return;
+  async function startPomodoroMusic(forceEnabled = false) {
+    if ((!forceEnabled && !pomodoroMusicEnabledRef.current) || typeof window === "undefined") return;
 
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
+    const startToken = (audioStartTokenRef.current += 1);
 
-    const context = audioContextRef.current || new AudioContext();
-    audioContextRef.current = context;
-    await context.resume();
+    if (!pomodoroAudioRef.current) {
+      const audio = new Audio(POMODORO_AUDIO_SRC);
+      audio.loop = true;
+      audio.volume = 0.55;
+      audio.preload = "auto";
+      pomodoroAudioRef.current = audio;
+    }
 
-    const gain = context.createGain();
-    const filter = context.createBiquadFilter();
-    const frequencies = [196, 246.94, 329.63];
-    const oscillators = frequencies.map((frequency, index) => {
-      const oscillator = context.createOscillator();
-      oscillator.type = index === 1 ? "triangle" : "sine";
-      oscillator.frequency.value = frequency;
-      oscillator.detune.value = index * 4 - 4;
-      oscillator.connect(filter);
-      oscillator.start();
-      return oscillator;
-    });
+    const audio = pomodoroAudioRef.current;
 
-    filter.type = "lowpass";
-    filter.frequency.value = 760;
-    filter.Q.value = 0.7;
-    gain.gain.value = 0;
+    if (
+      startToken !== audioStartTokenRef.current ||
+      !pomodoroMusicEnabledRef.current ||
+      !pomodoroRunningRef.current
+    ) {
+      return;
+    }
 
-    filter.connect(gain);
-    gain.connect(context.destination);
-    gain.gain.linearRampToValueAtTime(0.035, context.currentTime + 0.45);
+    try {
+      await audio.play();
+    } catch (err) {
+      // Mobile browsers may block playback until the next direct tap.
+    }
 
-    audioNodesRef.current = { oscillators, gain };
+    if (startToken !== audioStartTokenRef.current) return;
+
+    if (!pomodoroMusicEnabledRef.current || !pomodoroRunningRef.current) {
+      audio.pause();
+    }
   }
 
   async function togglePomodoroRunning() {
-    const shouldRun = !pomodoroRunning;
+    const shouldRun = !pomodoroRunningRef.current;
+    pomodoroRunningRef.current = shouldRun;
+    setPomodoroRunning(shouldRun);
 
     if (shouldRun) {
       await startPomodoroMusic();
     } else {
       stopPomodoroMusic();
     }
+  }
 
-    setPomodoroRunning(shouldRun);
+  async function togglePomodoroMusic() {
+    const shouldEnable = !pomodoroMusicEnabledRef.current;
+    pomodoroMusicEnabledRef.current = shouldEnable;
+    setPomodoroMusicEnabled(shouldEnable);
+
+    if (shouldEnable) {
+      if (pomodoroRunningRef.current) await startPomodoroMusic(true);
+      return;
+    }
+
+    stopPomodoroMusic();
   }
 
   function addThought(event) {
     event?.preventDefault?.();
     const text = draft.trim();
+    const projectTag = normalizeProjectTag(draftProject);
     if (!text) return;
 
     runMutation(async () => {
-      const { error: insertError } = await supabase.from("items").insert({
+      const payload = {
         user_id: user.id,
         column: "thoughts",
         text,
         started_at: new Date().toISOString(),
         finished_at: null,
-      });
+      };
+
+      if (projectTagAvailable) {
+        payload.project_tag = projectTag || null;
+      }
+
+      const { error: insertError } = await supabase.from("items").insert(payload);
 
       if (insertError) throw insertError;
 
       setDraft("");
+      setDraftProject("");
       inputRef.current?.focus();
       await loadItems();
     });
+  }
+
+  function startProjectEdit(item) {
+    if (!projectTagAvailable) return;
+    setEditingProjectId(item.id);
+    setEditingProjectValue(item.projectTag || "");
+  }
+
+  function cancelProjectEdit() {
+    setEditingProjectId(null);
+    setEditingProjectValue("");
+  }
+
+  function saveProjectEdit(item) {
+    if (!projectTagAvailable) return;
+
+    const nextProjectTag = normalizeProjectTag(editingProjectValue);
+    runMutation(async () => {
+      const { error: updateError } = await supabase
+        .from("items")
+        .update({ project_tag: nextProjectTag || null })
+        .eq("id", item.id)
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+      cancelProjectEdit();
+      await loadItems();
+    });
+  }
+
+  function renderProjectTagControl(item, extraClassName = "") {
+    if (editingProjectId === item.id) {
+      return (
+        <span className={`project-chip-editor ${extraClassName}`.trim()}>
+          <Hash size={11} aria-hidden="true" />
+          <input
+            value={editingProjectValue}
+            onChange={(event) => setEditingProjectValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") saveProjectEdit(item);
+              if (event.key === "Escape") cancelProjectEdit();
+            }}
+            list="project-tag-options"
+            placeholder="project"
+            autoFocus
+            disabled={busy}
+          />
+          <button type="button" onClick={() => saveProjectEdit(item)} disabled={busy} aria-label="Save project tag">
+            <Check size={11} />
+          </button>
+          <button type="button" onClick={cancelProjectEdit} disabled={busy} aria-label="Cancel project tag edit">
+            <X size={11} />
+          </button>
+        </span>
+      );
+    }
+
+    if (item.projectTag) {
+      return (
+        <button
+          type="button"
+          className={`project-chip editable ${extraClassName}`.trim()}
+          onClick={() => startProjectEdit(item)}
+          disabled={busy || !projectTagAvailable}
+          title="Edit project tag"
+        >
+          #{item.projectTag}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        className={`project-chip add-project-chip ${extraClassName}`.trim()}
+        onClick={() => startProjectEdit(item)}
+        disabled={busy || !projectTagAvailable}
+        title="Add project tag"
+      >
+        <Hash size={11} aria-hidden="true" /> tag
+      </button>
+    );
   }
 
   function removeItem(id) {
@@ -423,6 +574,19 @@ const [accountError, setAccountError] = useState("");
       const { error: updateError } = await supabase
         .from("items")
         .update({ column: "thoughts", started_at: new Date().toISOString(), finished_at: null })
+        .eq("id", item.id)
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+      await loadItems();
+    });
+  }
+
+  function moveToSetAside(item) {
+    runMutation(async () => {
+      const { error: updateError } = await supabase
+        .from("items")
+        .update({ column: "setaside", started_at: new Date().toISOString(), finished_at: null })
         .eq("id", item.id)
         .eq("user_id", user.id);
 
@@ -471,13 +635,13 @@ const [accountError, setAccountError] = useState("");
     });
   }
 
-  function dropFocusBackToBuffer() {
+  function moveFocusToSetAside() {
     if (!focus) return;
 
     runMutation(async () => {
       const { error: updateError } = await supabase
         .from("items")
-        .update({ column: "thoughts", started_at: new Date().toISOString(), finished_at: null })
+        .update({ column: "setaside", started_at: new Date().toISOString(), finished_at: null })
         .eq("id", focus.id)
         .eq("user_id", user.id);
 
@@ -542,13 +706,13 @@ function requestDeleteAccount() {
             <div className="header-copy">
               
   <h1>
-    Chaos Planner <span className="brand-mark" aria-hidden="true" />
+    The One Thing <span className="brand-mark" aria-hidden="true" />
     <button
       type="button"
       className="app-info-btn"
       onClick={() => setAppInfoOpen((open) => !open)}
       aria-expanded={appInfoOpen}
-      aria-label="What Chaos Planner is for"
+      aria-label="What The One Thing is for"
     >
       <Info size={14} />
     </button>
@@ -556,7 +720,7 @@ function requestDeleteAccount() {
   {appInfoOpen && (
     <div className="app-info-popover" role="note">
       <p>
-        For the days when your brain opens 37 tabs at once. Drop every thought here, pick one thing for right now, and
+        For the days when your brain opens 37 tabs at once. Drop every thought here, pick one thing for this moment, and
         let the other shiny ideas wait their turn instead of hijacking your afternoon.
       </p>
       <button type="button" onClick={() => setAppInfoOpen(false)} aria-label="Close app info">
@@ -564,7 +728,7 @@ function requestDeleteAccount() {
       </button>
     </div>
   )}
-  <p>{headerTagline}</p>
+  <p>An anti-chaos planner for noisy minds.</p>
   <div className="header-controls">
     <ThemeSwitcher theme={theme} onChange={onThemeChange} />
   </div>
@@ -630,12 +794,13 @@ function requestDeleteAccount() {
       )}
 
       <main className="bp-main">
-        <section aria-label="Thought overflow" className="panel panel-white">
+        <section aria-label="Thought overflow" className="panel panel-white thoughts-panel">
           <div className="panel-title-row">
-            <h2 className="hand-title">whatever just crossed my mind</h2>
-            <span className="live-count">
-              {thoughts.length}/{ACTIVE_CAP} live
-            </span>
+            <div className="panel-title-copy">
+              <h2 className="hand-title">whatever just crossed my mind</h2>
+              <p>Fresh brain-noise goes here. Keep only the most current few, then focus one or park it for later.</p>
+            </div>
+            <span className="live-count">{thoughts.length}/{ACTIVE_CAP} live</span>
           </div>
 
           <form onSubmit={addThought} className="add-form">
@@ -647,9 +812,28 @@ function requestDeleteAccount() {
               placeholder="drop it here before it slips away..."
               disabled={busy}
             />
+            <label className="project-tag-field">
+              <Hash size={13} aria-hidden="true" />
+              <span className="sr-only">Project tag</span>
+              <input
+                value={draftProject}
+                onChange={(event) => setDraftProject(event.target.value)}
+                list="project-tag-options"
+                placeholder="project tag"
+                disabled={busy}
+              />
+            </label>
+            <datalist id="project-tag-options">
+              {projectOptions.map((project) => (
+                <option key={project} value={project} />
+              ))}
+            </datalist>
             <button type="submit" className="bp-icon-btn" aria-label="Add thought" disabled={busy}>
               <Plus size={18} />
             </button>
+            {!projectTagAvailable && (
+              <p className="project-tag-notice">Run the project_tag SQL once to save project tags.</p>
+            )}
           </form>
 
           <div className="bp-scroll thought-list">
@@ -662,15 +846,27 @@ function requestDeleteAccount() {
             ) : (
               thoughts.map((item) => (
                 <div key={item.id} className="bp-card sticky-note" style={{ transform: `rotate(${item.rot}deg)` }}>
-                  <span>{item.text}</span>
+                  <span>
+                    {item.text}
+                    {renderProjectTagControl(item)}
+                  </span>
+                  <button
+                    onClick={() => moveToSetAside(item)}
+                    className="bp-thought-btn set-aside-btn"
+                    title="Set aside for later"
+                    aria-label={`Move ${item.text} to Set aside for later`}
+                    disabled={busy}
+                  >
+                    <ArrowRight size={14} />
+                  </button>
                   <button
                     onClick={() => promote(item)}
                     className="bp-thought-btn promote-btn"
                     title="Make this the one thing"
-                    aria-label={`Move ${item.text} to Right now`}
+                    aria-label={`Move ${item.text} to The One Thing`}
                     disabled={busy}
                   >
-                    <ArrowRight size={14} />
+                    <Play size={13} />
                   </button>
                   <button
                     onClick={() => removeItem(item.id)}
@@ -690,7 +886,7 @@ function requestDeleteAccount() {
         <section aria-label="Set aside for later" className="panel panel-aside">
           <div className="panel-copy">
             <h2>set aside for later</h2>
-            <p>The oldest ones quietly land here once the left column fills up — so your mind doesn't have to hold them all.</p>
+            <p>Ideas worth keeping, just not right now. Bring them back when they start feeling loud again.</p>
           </div>
 
           <div className="bp-scroll aside-list">
@@ -699,21 +895,24 @@ function requestDeleteAccount() {
             ) : (
               setAside.map((item) => (
                 <div key={item.id} className="bp-aside-row">
-                  <span>{item.text}</span>
+                  <span>
+                    {item.text}
+                    {renderProjectTagControl(item)}
+                  </span>
+                  <button
+                    onClick={() => bringBack(item)}
+                    className="small-outline-btn soft"
+                    title="Bring back to live thoughts"
+                    aria-label={`Bring ${item.text} back to live thoughts`}
+                    disabled={busy}
+                  >
+                    <ArrowLeft size={12} />
+                  </button>
                   <button
                     onClick={() => promote(item)}
                     className="small-outline-btn green"
                     title="Make this the one thing"
-                    aria-label={`Move ${item.text} to Right now`}
-                    disabled={busy}
-                  >
-                    <ArrowRight size={12} />
-                  </button>
-                  <button
-                    onClick={() => bringBack(item)}
-                    className="small-outline-btn soft"
-                    title="Bring back to overflow"
-                    aria-label={`Bring ${item.text} back to overflow`}
+                    aria-label={`Move ${item.text} to The One Thing`}
                     disabled={busy}
                   >
                     <ArrowUp size={12} />
@@ -733,19 +932,25 @@ function requestDeleteAccount() {
           </div>
         </section>
 
-        <section className="bp-focus-col" aria-label="Right now">
+        <section className="bp-focus-col" aria-label="The One Thing">
           <div className="focus-panel">
             <div>
               <div className="focus-kicker">
                 <span className={focus ? "pulse-dot active" : "pulse-dot"} />
-                <h2>Right now</h2>
+                <h2>The One Thing</h2>
               </div>
 
-              {focus ? (
-                <p className="focus-title">{focus.text}</p>
+              <div className={focus ? "focus-spotlight" : "focus-spotlight empty"}>
+                {focus ? (
+                  <p className="focus-title">
+                    {focus.text}
+                    {renderProjectTagControl(focus, "focus-project-chip")}
+                  </p>
               ) : (
                 <p className="focus-empty">Nothing chosen yet. Pick one thought from the left — just one — and it lands here.</p>
               )}
+
+              </div>
 
               {focus && (
                 <p className="focus-time">
@@ -771,7 +976,7 @@ function requestDeleteAccount() {
                     <button
                       type="button"
                       className={pomodoroMusicEnabled ? "pomodoro-control active" : "pomodoro-control"}
-                      onClick={() => setPomodoroMusicEnabled((enabled) => !enabled)}
+                      onClick={togglePomodoroMusic}
                       aria-pressed={pomodoroMusicEnabled}
                       aria-label={pomodoroMusicEnabled ? "Turn pomodoro music off" : "Turn pomodoro music on"}
                     >
@@ -836,8 +1041,8 @@ function requestDeleteAccount() {
                 <button onClick={finishFocus} className="done-btn" disabled={busy}>
                   <Check size={14} /> Done
                 </button>
-                <button onClick={dropFocusBackToBuffer} className="not-now-btn" disabled={busy}>
-                  Not now
+                <button onClick={moveFocusToSetAside} className="not-now-btn" disabled={busy}>
+                  Later
                 </button>
               </div>
             )}
@@ -902,10 +1107,37 @@ function requestDeleteAccount() {
                 clearedToday.map((item) => (
                   <div key={item.id + item.finishedAt} className="log-item">
                     <Check size={12} color="#5C8753" />
-                    <span>{item.text}</span>
+                    <span>
+                      {item.text}
+                      {item.projectTag && <small className="project-chip">#{item.projectTag}</small>}
+                    </span>
                     <small>{timeAgo(item.finishedAt)}</small>
                   </div>
                 ))
+              )}
+            </div>
+
+            <div className="project-stats" aria-label="Project tag summary">
+              <h4>Completed project mix</h4>
+              {projectStats.length === 0 ? (
+                <p className="muted roomy">Project tags will show up here once completed tasks have them.</p>
+              ) : (
+                <div className="project-stat-list">
+                  {projectStats.map(([project, count]) => {
+                    const percent = Math.round((count / totalProjectTaggedItems) * 100);
+                    return (
+                      <div key={project} className="project-stat-row">
+                        <span>#{project}</span>
+                        <div className="project-stat-track" aria-hidden="true">
+                          <i style={{ width: `${Math.max(12, Math.round((count / maxProjectCount) * 100))}%` }} />
+                        </div>
+                        <strong>
+                          {percent}% <small>{count}</small>
+                        </strong>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
@@ -924,7 +1156,10 @@ function requestDeleteAccount() {
                     archivedLog.map((item) => (
                       <div key={item.id + item.finishedAt} className="log-item">
                         <Check size={12} color="#5C8753" />
-                        <span>{item.text}</span>
+                        <span>
+                          {item.text}
+                          {item.projectTag && <small className="project-chip">#{item.projectTag}</small>}
+                        </span>
                         <small>{timeAgo(item.finishedAt)}</small>
                       </div>
                     ))

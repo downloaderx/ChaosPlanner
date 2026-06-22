@@ -1,4 +1,4 @@
-# Overflow & Focus — Supabase version
+# The One Thing - Supabase version
 
 This is the standalone React/Vite version of the original Claude artifact. It keeps the same idea:
 

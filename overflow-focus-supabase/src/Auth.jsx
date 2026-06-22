@@ -156,7 +156,7 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
   function getTitle() {
     if (mode === "reset-password") return "Reset your password";
     if (mode === "update-password") return "Choose a new password";
-    return "Overflow & Focus";
+    return "The One Thing";
   }
 
   function getSubtitle() {
@@ -165,10 +165,10 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
     }
 
     if (mode === "update-password") {
-      return "Make it a little stronger this time. Tiny security goblin approves.";
+      return "Make it a little stronger this time.";
     }
 
-    return "A soft place to catch noisy thoughts, choose one thing, and let the rest wait.";
+    return "An anti-chaos planner for noisy minds.";
   }
 
   return (

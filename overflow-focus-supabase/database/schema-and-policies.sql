@@ -6,9 +6,13 @@ create table if not exists public.items (
   user_id uuid not null references auth.users(id) on delete cascade,
   column text not null check (column in ('thoughts', 'setaside', 'focus', 'log')),
   text text not null,
+  project_tag text null,
   started_at timestamptz not null default now(),
   finished_at timestamptz null
 );
+
+alter table public.items
+add column if not exists project_tag text null;
 
 alter table public.items enable row level security;
 
