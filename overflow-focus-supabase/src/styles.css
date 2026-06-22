@@ -889,7 +889,6 @@ input:disabled {
 
 .auth-form button,
 .mode-switch,
-.sign-out,
 .bp-icon-btn,
 .bp-thought-btn,
 .small-outline-btn,
@@ -963,25 +962,6 @@ input:disabled {
   padding: 10px 14px 12px;
   box-shadow: 0 12px 28px -24px rgba(31, 43, 34, 0.62);
   backdrop-filter: blur(7px);
-}
-
-.header-actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  padding-top: 10px;
-}
-
-.sign-out {
-  background: var(--chip-bg);
-  color: var(--accent);
-  border: 1px solid var(--chip-border);
-  border-radius: 10px;
-  padding: 9px 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
 }
 
 .bp-main {
@@ -1204,20 +1184,23 @@ input:disabled {
   gap: 10px;
 }
 
-.sticky-note span,
-.bp-aside-row span {
+.item-copy {
   flex: 1;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.4;
 }
 
 .project-chip {
   width: fit-content;
-  display: block;
-  margin: 6px 0 0 2px;
-  border: 0;
-  background: transparent;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 7px 0 0;
+  border: 1px solid var(--chip-border);
+  background: var(--chip-bg);
+  border-radius: 999px;
+  padding: 3px 7px;
   color: var(--accent);
   font-size: 11px;
   line-height: 1.2;
@@ -1230,11 +1213,14 @@ button.project-chip {
 }
 
 .add-project-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  color: var(--muted);
+  color: var(--accent);
   font-weight: 600;
+  opacity: 0.82;
+}
+
+.add-project-chip:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 .project-chip-editor {
@@ -1348,7 +1334,7 @@ button.project-chip {
   gap: 8px;
 }
 
-.bp-aside-row span {
+.bp-aside-row .item-copy {
   font-size: 13px;
   line-height: 1.4;
   color: var(--text-soft);
@@ -1362,11 +1348,6 @@ button.project-chip {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-}
-
-.small-outline-btn.green {
-  color: var(--accent);
-  border: 1px solid var(--btn-outline-green);
 }
 
 .small-outline-btn.soft {
@@ -1952,7 +1933,7 @@ button.project-chip {
   padding-bottom: 7px;
 }
 
-.log-item span {
+.log-item .item-copy {
   flex: 1;
 }
 
@@ -1962,11 +1943,11 @@ button.project-chip {
   flex-shrink: 0;
 }
 
-.sticky-note span,
-.bp-aside-row span,
+.sticky-note .item-copy,
+.bp-aside-row .item-copy,
 .focus-title,
 .focus-empty,
-.log-item span,
+.log-item .item-copy,
 .muted,
 .panel-copy p {
   font-family: var(--font-body);
@@ -1988,7 +1969,6 @@ button.project-chip {
 .pomodoro-control:focus-visible,
 .pomodoro-help-btn:focus-visible,
 .pomodoro-help-close:focus-visible,
-.sign-out:focus-visible,
 .auth-form button:focus-visible,
 .mode-switch:focus-visible {
   outline: 2px solid var(--accent);
@@ -2083,18 +2063,6 @@ button.project-chip {
     padding: 6px 10px;
   }
 
-  .header-actions {
-    width: 100%;
-    justify-content: flex-start;
-    padding-top: 0;
-  }
-
-  .account-menu,
-  .account-trigger {
-    width: 100%;
-    max-width: none;
-  }
-
   .bp-main {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -2183,14 +2151,6 @@ button.project-chip {
     padding-inline: 7px;
   }
 
-  .sign-out {
-    font-size: 0;
-    padding: 9px;
-  }
-
-  .sign-out svg {
-    margin: 0;
-  }
 }
 
 @media (max-width: 420px) {
@@ -2269,13 +2229,6 @@ button.project-chip {
 
 .header-account-menu {
   line-height: 0;
-}
-
-.account-trigger-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .account-dropdown {
@@ -2529,8 +2482,8 @@ button.project-chip {
 [data-theme="pixel"] .panel-copy p,
 [data-theme="pixel"] .muted,
 [data-theme="pixel"] .log-item,
-[data-theme="pixel"] .bp-aside-row span,
-[data-theme="pixel"] .sticky-note span,
+[data-theme="pixel"] .bp-aside-row .item-copy,
+[data-theme="pixel"] .sticky-note .item-copy,
 [data-theme="pixel"] .focus-empty,
 [data-theme="pixel"] .focus-time {
   font-size: 18px;
@@ -2579,8 +2532,7 @@ button.project-chip {
 [data-theme="pixel"] .bp-icon-btn,
 [data-theme="pixel"] .promote-btn,
 [data-theme="pixel"] .set-aside-btn,
-[data-theme="pixel"] .done-btn,
-[data-theme="pixel"] .small-outline-btn.green {
+[data-theme="pixel"] .done-btn {
   border-radius: 0;
 }
 
@@ -2758,8 +2710,7 @@ button.project-chip {
 /* ---------- Plant flourishes ---------- */
 [data-theme="plant"] .bp-icon-btn,
 [data-theme="plant"] .promote-btn,
-[data-theme="plant"] .set-aside-btn,
-[data-theme="plant"] .small-outline-btn.green {
+[data-theme="plant"] .set-aside-btn {
   border-radius: 999px;
 }
 
@@ -2889,7 +2840,7 @@ button.project-chip {
 [data-theme="brutalist"] .promote-btn,
 [data-theme="brutalist"] .set-aside-btn,
 [data-theme="brutalist"] .done-btn,
-[data-theme="brutalist"] .small-outline-btn.green {
+[data-theme="brutalist"] .small-outline-btn {
   border-radius: 0;
 }
 

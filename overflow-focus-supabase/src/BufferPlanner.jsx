@@ -145,7 +145,7 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [projectTagAvailable, setProjectTagAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
   const [accountMessage, setAccountMessage] = useState("");
-const [accountError, setAccountError] = useState("");
+  const [accountError, setAccountError] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [initialPomodoro] = useState(() => getInitialPomodoroState(user.id));
   const [pomodoroMode, setPomodoroMode] = useState(initialPomodoro.mode);
@@ -197,7 +197,7 @@ const [accountError, setAccountError] = useState("");
       try {
         await action();
       } catch (err) {
-        setError(err.message || "Saving failed — try again.");
+        setError(err.message || "Saving failed - try again.");
       } finally {
         setBusy(false);
       }
@@ -457,7 +457,6 @@ const [accountError, setAccountError] = useState("");
 
     runMutation(async () => {
       const payload = {
-        user_id: user.id,
         column: "thoughts",
         text,
         started_at: new Date().toISOString(),
@@ -650,35 +649,35 @@ const [accountError, setAccountError] = useState("");
     });
   }
 
-async function sendPasswordReset() {
-  setAccountMessage("");
-  setAccountError("");
+  async function sendPasswordReset() {
+    setAccountMessage("");
+    setAccountError("");
 
-  if (!user.email) {
-    setAccountError("No email found for this account.");
-    return;
+    if (!user.email) {
+      setAccountError("No email found for this account.");
+      return;
+    }
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+
+    if (resetError) {
+      setAccountError(resetError.message || "Could not send reset link.");
+      return;
+    }
+
+    setAccountMessage("Password reset link sent to your email.");
+    setAccountOpen(false);
   }
 
-  const { error: resetError } = await supabase.auth.resetPasswordForEmail(user.email, {
-    redirectTo: `${window.location.origin}/reset-password`,
-  });
-
-  if (resetError) {
-    setAccountError(resetError.message || "Could not send reset link.");
-    return;
+  function requestDeleteAccount() {
+    setAccountError("");
+    setAccountMessage(
+      "Account deletion is manual in this test version. Contact the app owner if you want your account removed."
+    );
+    setAccountOpen(false);
   }
-
-  setAccountMessage("Password reset link sent to your email.");
-  setAccountOpen(false);
-}
-
-function requestDeleteAccount() {
-  setAccountError("");
-  setAccountMessage(
-    "Account deletion is manual in this test version. Contact the app owner if you want your account removed."
-  );
-  setAccountOpen(false);
-}
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -836,18 +835,18 @@ function requestDeleteAccount() {
 
           <div className="bp-scroll thought-list">
             {!loaded ? (
-              <p className="muted">loading…</p>
+              <p className="muted">loading...</p>
             ) : thoughts.length === 0 ? (
               <p className="muted roomy">
-                Nothing parked here. Good. Jot down anything that pops up — you don't have to act on it yet.
+                Nothing parked here. Good. Jot down anything that pops up - you don't have to act on it yet.
               </p>
             ) : (
               thoughts.map((item) => (
                 <div key={item.id} className="bp-card sticky-note" style={{ transform: `rotate(${item.rot}deg)` }}>
-                  <span>
+                  <div className="item-copy">
                     {item.text}
                     {renderProjectTagControl(item)}
-                  </span>
+                  </div>
                   <button
                     onClick={() => promote(item)}
                     className="bp-thought-btn promote-btn"
@@ -893,10 +892,10 @@ function requestDeleteAccount() {
             ) : (
               setAside.map((item) => (
                 <div key={item.id} className="bp-aside-row">
-                  <span>
+                  <div className="item-copy">
                     {item.text}
                     {renderProjectTagControl(item)}
-                  </span>
+                  </div>
                   <button
                     onClick={() => bringBack(item)}
                     className="small-outline-btn soft"
@@ -936,7 +935,7 @@ function requestDeleteAccount() {
                     {renderProjectTagControl(focus, "focus-project-chip")}
                   </p>
               ) : (
-                <p className="focus-empty">Nothing chosen yet. Pick one thought from the left — just one — and it lands here.</p>
+                <p className="focus-empty">Nothing chosen yet. Pick one thought from the left - just one - and it lands here.</p>
               )}
 
               </div>
@@ -1096,10 +1095,9 @@ function requestDeleteAccount() {
                 clearedToday.map((item) => (
                   <div key={item.id + item.finishedAt} className="log-item">
                     <Check size={12} color="#5C8753" />
-                    <span>
+                    <div className="item-copy">
                       {item.text}
-                      {item.projectTag && <small className="project-chip">#{item.projectTag}</small>}
-                    </span>
+                    </div>
                     <small>{timeAgo(item.finishedAt)}</small>
                   </div>
                 ))
@@ -1166,10 +1164,9 @@ function requestDeleteAccount() {
                     archivedLog.map((item) => (
                       <div key={item.id + item.finishedAt} className="log-item">
                         <Check size={12} color="#5C8753" />
-                        <span>
+                        <div className="item-copy">
                           {item.text}
-                          {item.projectTag && <small className="project-chip">#{item.projectTag}</small>}
-                        </span>
+                        </div>
                         <small>{timeAgo(item.finishedAt)}</small>
                       </div>
                     ))

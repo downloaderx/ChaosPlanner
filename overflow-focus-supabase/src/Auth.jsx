@@ -64,34 +64,40 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
     try {
       const authCall =
         mode === "sign-up"
-          ? supabase.auth.signUp({ email: email.trim(), password })
+          ? supabase.auth.signUp({
+              email: email.trim(),
+              password,
+              options: {
+                emailRedirectTo: `${window.location.origin}/`,
+              },
+            })
           : supabase.auth.signInWithPassword({ email: email.trim(), password });
 
-      const { data, error: authError } = await authCall;
+      const { error: authError } = await authCall;
 
       if (authError) throw authError;
 
       if (mode === "sign-up") {
-  setMessage(
-    "Check your email for the next step. If this address is already registered, try signing in or resetting your password."
-  );
-} else {
-  setMessage("You're in.");
-}
+        setMessage(
+          "Check your email for the next step. If this address is already registered, try signing in or resetting your password."
+        );
+      } else {
+        setMessage("You're in.");
+      }
     } catch (err) {
-  const message = err.message || "";
+      const message = err.message || "";
 
-  if (
-    mode === "sign-up" &&
-    (message.toLowerCase().includes("already") ||
-      message.toLowerCase().includes("registered") ||
-      message.toLowerCase().includes("user"))
-  ) {
-    setError("This email may already have an account. Try signing in or resetting your password.");
-  } else {
-    setError(message || "Something went wrong. Try again.");
-  }
-} finally {
+      if (
+        mode === "sign-up" &&
+        (message.toLowerCase().includes("already") ||
+          message.toLowerCase().includes("registered") ||
+          message.toLowerCase().includes("user"))
+      ) {
+        setError("This email may already have an account. Try signing in or resetting your password.");
+      } else {
+        setError(message || "Something went wrong. Try again.");
+      }
+    } finally {
       setBusy(false);
     }
   }
@@ -106,7 +112,7 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
 
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/`,
       });
 
       if (resetError) throw resetError;
@@ -141,7 +147,7 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
 
       if (updateError) throw updateError;
 
-      setMessage("Password updated. Opening your planner…");
+      setMessage("Password updated. Opening your planner...");
 
       setTimeout(() => {
         onRecoveryComplete?.();
@@ -220,7 +226,7 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
 
           <button type="submit" disabled={busy}>
             {busy
-              ? "one sec…"
+              ? "one sec..."
               : mode === "sign-up"
                 ? "Create account"
                 : mode === "reset-password"

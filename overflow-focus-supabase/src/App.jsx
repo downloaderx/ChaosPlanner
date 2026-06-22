@@ -8,7 +8,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
-const [theme, setTheme] = useTheme();
+  const [theme, setTheme] = useTheme();
 
   useEffect(() => {
     let isMounted = true;
@@ -47,26 +47,26 @@ const [theme, setTheme] = useTheme();
   }, []);
 
   if (loading) {
-    return <div className="loading-screen">loading your planner…</div>;
+    return <div className="loading-screen">loading your planner...</div>;
   }
 
   if (recoveryMode) {
-  return (
-    <Auth
-      recoveryMode
-      theme={theme}
-      onThemeChange={setTheme}
-      onRecoveryComplete={() => {
-        setRecoveryMode(false);
-        window.history.replaceState({}, document.title, window.location.origin);
-      }}
-    />
-  );
-}
+    return (
+      <Auth
+        recoveryMode
+        theme={theme}
+        onThemeChange={setTheme}
+        onRecoveryComplete={() => {
+          setRecoveryMode(false);
+          window.history.replaceState({}, document.title, window.location.origin);
+        }}
+      />
+    );
+  }
 
-if (!session?.user) {
-  return <Auth theme={theme} onThemeChange={setTheme} />;
-}
+  if (!session?.user) {
+    return <Auth theme={theme} onThemeChange={setTheme} />;
+  }
 
-return <BufferPlanner user={session.user} theme={theme} onThemeChange={setTheme} />;
+  return <BufferPlanner user={session.user} theme={theme} onThemeChange={setTheme} />;
 }
