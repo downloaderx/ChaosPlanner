@@ -6,7 +6,6 @@ import {
   ArrowUp,
   Check,
   Clock,
-  Sparkles,
   LogOut,
   KeyRound,
   Trash2,
@@ -18,6 +17,7 @@ import {
   Lightbulb,
   Trophy,
   Music2,
+  Info,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -28,6 +28,15 @@ const ARCHIVE_LIMIT = 100;
 const POMODORO_FOCUS_SECONDS = 25 * 60;
 const POMODORO_BREAK_SECONDS = 5 * 60;
 const DAILY_GOAL_DEFAULT = 3;
+const POMODORO_STORAGE_VERSION = 1;
+const HEADER_TAGLINES = [
+  "Catch every passing thought. Keep only a handful live. Work on just one at a time.",
+  "Park the brain confetti here. Pick one piece to actually deal with.",
+  "For runaway ideas, half-started plans, and the one thing you meant to be doing.",
+  "Dump the mental tabs here. Keep one open on purpose.",
+  "A soft landing zone for thoughts that arrive before you asked them to.",
+  "Collect the noise. Choose the signal. Let the rest wait politely-ish.",
+];
 
 function rotationFromId(id) {
   const str = String(id || "");
@@ -71,6 +80,50 @@ function formatTimer(seconds) {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
+function getNextPomodoroMode(mode) {
+  return mode === "focus" ? "break" : "focus";
+}
+
+function getPomodoroDuration(mode) {
+  return mode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS;
+}
+
+function getInitialPomodoroState(userId) {
+  const fallback = {
+    mode: "focus",
+    seconds: POMODORO_FOCUS_SECONDS,
+    running: false,
+  };
+
+  if (typeof window === "undefined") return fallback;
+
+  try {
+    const stored = JSON.parse(localStorage.getItem(`pomodoro-state-${userId}`));
+    if (!stored || stored.version !== POMODORO_STORAGE_VERSION) return fallback;
+
+    const mode = stored.mode === "break" ? "break" : "focus";
+    const savedSeconds = Number(stored.seconds);
+    const seconds = Number.isFinite(savedSeconds) ? Math.max(0, Math.min(getPomodoroDuration(mode), savedSeconds)) : fallback.seconds;
+
+    if (!stored.running) {
+      return { mode, seconds: seconds || getPomodoroDuration(mode), running: false };
+    }
+
+    const savedAt = Number(stored.savedAt);
+    const elapsed = Number.isFinite(savedAt) ? Math.floor((Date.now() - savedAt) / 1000) : 0;
+    const remaining = Math.max(0, seconds - Math.max(0, elapsed));
+
+    if (remaining > 0) {
+      return { mode, seconds: remaining, running: true };
+    }
+
+    const nextMode = getNextPomodoroMode(mode);
+    return { mode: nextMode, seconds: getPomodoroDuration(nextMode), running: false };
+  } catch (err) {
+    return fallback;
+  }
+}
+
 export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [thoughts, setThoughts] = useState([]);
   const [setAside, setSetAside] = useState([]);
@@ -83,11 +136,15 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   const [accountMessage, setAccountMessage] = useState("");
 const [accountError, setAccountError] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
-  const [pomodoroMode, setPomodoroMode] = useState("focus");
-  const [pomodoroSeconds, setPomodoroSeconds] = useState(POMODORO_FOCUS_SECONDS);
-  const [pomodoroRunning, setPomodoroRunning] = useState(false);
+  const [initialPomodoro] = useState(() => getInitialPomodoroState(user.id));
+  const [pomodoroMode, setPomodoroMode] = useState(initialPomodoro.mode);
+  const [pomodoroSeconds, setPomodoroSeconds] = useState(initialPomodoro.seconds);
+  const [pomodoroRunning, setPomodoroRunning] = useState(initialPomodoro.running);
   const [pomodoroHelpOpen, setPomodoroHelpOpen] = useState(false);
   const [pomodoroMusicEnabled, setPomodoroMusicEnabled] = useState(true);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [appInfoOpen, setAppInfoOpen] = useState(false);
+  const [headerTagline] = useState(() => HEADER_TAGLINES[Math.floor(Math.random() * HEADER_TAGLINES.length)]);
   const [dailyGoal, setDailyGoal] = useState(() => {
     if (typeof window === "undefined") return DAILY_GOAL_DEFAULT;
     const stored = Number(localStorage.getItem(`daily-goal-${user.id}`));
@@ -103,6 +160,7 @@ const [accountError, setAccountError] = useState("");
   const dailyGoalProgress = Math.min(clearedToday.length, dailyGoal);
   const dailyGoalComplete = clearedToday.length >= dailyGoal;
   const dailyGoalPercent = Math.round((dailyGoalProgress / dailyGoal) * 100);
+  const breakUnlocked = pomodoroMode === "break";
 
   const runMutation = useCallback(
     async (action) => {
@@ -185,21 +243,29 @@ const [accountError, setAccountError] = useState("");
 
     setPomodoroRunning(false);
     setPomodoroMode((mode) => {
-      const nextMode = mode === "focus" ? "break" : "focus";
-      setPomodoroSeconds(nextMode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS);
+      const nextMode = getNextPomodoroMode(mode);
+      setPomodoroSeconds(getPomodoroDuration(nextMode));
       return nextMode;
     });
   }, [pomodoroRunning, pomodoroSeconds]);
 
   useEffect(() => {
+    if (!loaded) return;
+
     if (!focus) {
       setPomodoroRunning(false);
       stopPomodoroMusic();
     }
-  }, [focus]);
+  }, [focus, loaded]);
 
   useEffect(() => {
-    if (!pomodoroRunning || pomodoroMusicEnabled) return;
+    if (!pomodoroRunning) return;
+
+    if (pomodoroMusicEnabled) {
+      startPomodoroMusic();
+      return;
+    }
+
     stopPomodoroMusic();
   }, [pomodoroMusicEnabled, pomodoroRunning]);
 
@@ -208,6 +274,23 @@ const [accountError, setAccountError] = useState("");
   }, [pomodoroRunning]);
 
   useEffect(() => () => stopPomodoroMusic(), []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        `pomodoro-state-${user.id}`,
+        JSON.stringify({
+          version: POMODORO_STORAGE_VERSION,
+          mode: pomodoroMode,
+          seconds: pomodoroSeconds,
+          running: pomodoroRunning,
+          savedAt: Date.now(),
+        })
+      );
+    } catch (err) {
+      // localStorage unavailable, timer just won't persist for this session
+    }
+  }, [pomodoroMode, pomodoroRunning, pomodoroSeconds, user.id]);
 
   useEffect(() => {
     try {
@@ -228,15 +311,17 @@ const [accountError, setAccountError] = useState("");
   }
 
   function setPomodoroPreset(mode) {
+    if (mode === "break" && !breakUnlocked) return;
+
     setPomodoroMode(mode);
     setPomodoroRunning(false);
-    setPomodoroSeconds(mode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS);
+    setPomodoroSeconds(getPomodoroDuration(mode));
   }
 
   function resetPomodoro() {
     setPomodoroRunning(false);
     stopPomodoroMusic();
-    setPomodoroSeconds(pomodoroMode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS);
+    setPomodoroSeconds(getPomodoroDuration(pomodoroMode));
   }
 
   function stopPomodoroMusic() {
@@ -454,13 +539,32 @@ function requestDeleteAccount() {
       <header className="planner-header">
         <div className="header-row">
           <div className="brand-row">
-            <span className="brand-mark">
-              <Sparkles size={15} color="#FFE066" />
-            </span>
             <div className="header-copy">
               
-  <h1>Chaos Planner</h1>
-  <p>Catch every passing thought. Keep only a handful live. Work on just one at a time.</p>
+  <h1>
+    Chaos Planner <span className="brand-mark" aria-hidden="true" />
+    <button
+      type="button"
+      className="app-info-btn"
+      onClick={() => setAppInfoOpen((open) => !open)}
+      aria-expanded={appInfoOpen}
+      aria-label="What Chaos Planner is for"
+    >
+      <Info size={14} />
+    </button>
+  </h1>
+  {appInfoOpen && (
+    <div className="app-info-popover" role="note">
+      <p>
+        For the days when your brain opens 37 tabs at once. Drop every thought here, pick one thing for right now, and
+        let the other shiny ideas wait their turn instead of hijacking your afternoon.
+      </p>
+      <button type="button" onClick={() => setAppInfoOpen(false)} aria-label="Close app info">
+        <X size={13} />
+      </button>
+    </div>
+  )}
+  <p>{headerTagline}</p>
   <div className="header-controls">
     <ThemeSwitcher theme={theme} onChange={onThemeChange} />
   </div>
@@ -689,6 +793,8 @@ function requestDeleteAccount() {
                       className={pomodoroMode === "break" ? "pomodoro-chip active" : "pomodoro-chip"}
                       onClick={() => setPomodoroPreset("break")}
                       aria-pressed={pomodoroMode === "break"}
+                      disabled={!breakUnlocked}
+                      title={breakUnlocked ? "Take a 5 minute break" : "Finish a 25 minute focus session first"}
                     >
                       5
                     </button>
@@ -738,7 +844,20 @@ function requestDeleteAccount() {
           </div>
 
           <div className="panel panel-white log-panel">
-            <h3>Cleared today</h3>
+            <div className="log-title-row">
+              <h3>Cleared today</h3>
+              <button
+                type="button"
+                className="archive-toggle"
+                onClick={() => setArchiveOpen((open) => !open)}
+                aria-expanded={archiveOpen}
+                aria-controls="archive-log"
+              >
+                Archive
+                <span>{archivedLog.length}</span>
+                <ChevronDown size={14} />
+              </button>
+            </div>
             <div className="daily-goal">
               <div className="daily-goal-row">
                 <label htmlFor="daily-goal-input">Daily goal</label>
@@ -789,23 +908,30 @@ function requestDeleteAccount() {
                 ))
               )}
             </div>
-          </div>
 
-          <div className="panel panel-white log-panel archive-panel">
-            <h3>Archive</h3>
-            <div className="bp-scroll archive-list">
-              {archivedLog.length === 0 ? (
-                <p className="muted roomy">Older cleared items will collect here after today.</p>
-              ) : (
-                archivedLog.map((item) => (
-                  <div key={item.id + item.finishedAt} className="log-item">
-                    <Check size={12} color="#5C8753" />
-                    <span>{item.text}</span>
-                    <small>{timeAgo(item.finishedAt)}</small>
-                  </div>
-                ))
-              )}
-            </div>
+            {archiveOpen && (
+              <div id="archive-log" className="archive-drawer">
+                <div className="archive-drawer-title">
+                  <h4>Archive</h4>
+                  <button type="button" onClick={() => setArchiveOpen(false)} aria-label="Close archive">
+                    <X size={13} />
+                  </button>
+                </div>
+                <div className="bp-scroll archive-list">
+                  {archivedLog.length === 0 ? (
+                    <p className="muted roomy">Older cleared items will collect here after today.</p>
+                  ) : (
+                    archivedLog.map((item) => (
+                      <div key={item.id + item.finishedAt} className="log-item">
+                        <Check size={12} color="#5C8753" />
+                        <span>{item.text}</span>
+                        <small>{timeAgo(item.finishedAt)}</small>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </main>

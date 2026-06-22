@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
 
@@ -175,9 +174,7 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
   return (
     <main className="auth-shell">
       <section className="auth-card">
-        <span className="logo-mark">
-          <Sparkles size={18} color="#FFE066" />
-        </span>
+        <span className="logo-mark" aria-hidden="true" />
 
         <h1>{getTitle()}</h1>
 
