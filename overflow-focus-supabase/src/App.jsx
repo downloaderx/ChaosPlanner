@@ -4,10 +4,21 @@ import Auth from "./Auth";
 import BufferPlanner from "./BufferPlanner";
 import { useTheme } from "./theme.jsx";
 
+const GUEST_MODE_STORAGE_KEY = "the-one-thing-guest-mode";
+const GUEST_USER = {
+  id: "guest",
+  email: "",
+  isGuest: true,
+};
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [guestMode, setGuestMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(GUEST_MODE_STORAGE_KEY) === "true";
+  });
   const [theme, setTheme] = useTheme();
 
   useEffect(() => {
@@ -22,6 +33,10 @@ export default function App() {
       if (error) console.error("Error loading auth session", error);
 
       setSession(data?.session ?? null);
+      if (data?.session) {
+        setGuestMode(false);
+        localStorage.removeItem(GUEST_MODE_STORAGE_KEY);
+      }
 
       if (recoveryFromUrl) {
         setRecoveryMode(true);
@@ -34,6 +49,11 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+
+      if (nextSession) {
+        setGuestMode(false);
+        localStorage.removeItem(GUEST_MODE_STORAGE_KEY);
+      }
 
       if (event === "PASSWORD_RECOVERY") {
         setRecoveryMode(true);
@@ -64,8 +84,22 @@ export default function App() {
     );
   }
 
+  function startGuestMode() {
+    setGuestMode(true);
+    localStorage.setItem(GUEST_MODE_STORAGE_KEY, "true");
+  }
+
+  function exitGuestMode() {
+    setGuestMode(false);
+    localStorage.removeItem(GUEST_MODE_STORAGE_KEY);
+  }
+
+  if (guestMode && !session?.user) {
+    return <BufferPlanner user={GUEST_USER} theme={theme} onThemeChange={setTheme} onExitGuest={exitGuestMode} />;
+  }
+
   if (!session?.user) {
-    return <Auth theme={theme} onThemeChange={setTheme} />;
+    return <Auth theme={theme} onThemeChange={setTheme} onContinueAsGuest={startGuestMode} />;
   }
 
   return <BufferPlanner user={session.user} theme={theme} onThemeChange={setTheme} />;

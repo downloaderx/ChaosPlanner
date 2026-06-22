@@ -14,7 +14,7 @@ function getPasswordErrors(password) {
   return errors;
 }
 
-export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, onThemeChange }) {
+export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, onThemeChange, onContinueAsGuest }) {
   const [mode, setMode] = useState(recoveryMode ? "update-password" : "sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -264,6 +264,12 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
             }}
           >
             {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
+          </button>
+        )}
+
+        {!recoveryMode && (
+          <button className="mode-switch guest-switch" type="button" onClick={onContinueAsGuest}>
+            Continue without account
           </button>
         )}
       </section>

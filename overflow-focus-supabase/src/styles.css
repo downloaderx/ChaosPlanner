@@ -758,27 +758,38 @@ input:disabled {
 .auth-card h1,
 .planner-header h1 {
   font-family: var(--font-heading);
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.01em;
   margin: 10px 0 0;
 }
 
 .planner-header h1 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  line-height: 1.05;
 }
 
 .title-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 8px;
   margin: 10px 0 0;
+  min-height: 34px;
 }
 
 .title-row h1 {
   margin: 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  width: 84px;
+  height: 24px;
 }
 
 .app-info-btn {
@@ -792,6 +803,8 @@ input:disabled {
   place-items: center;
   padding: 0;
   cursor: pointer;
+  flex: 0 0 24px;
+  line-height: 1;
 }
 
 .app-info-btn svg,
@@ -837,8 +850,11 @@ input:disabled {
 .planner-header .brand-mark {
   width: 24px;
   height: 24px;
+  flex: 0 0 24px;
   border-radius: 7px;
   display: inline-block;
+  transform: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-contrast) 28%, transparent);
 }
 
 .planner-header .brand-mark::before {
@@ -915,6 +931,11 @@ input:disabled {
   font-size: 13px;
 }
 
+.guest-switch {
+  border-top: 1px dashed var(--border-dashed);
+  padding-top: 14px;
+}
+
 .auth-error,
 .error-text {
   color: var(--danger) !important;
@@ -948,14 +969,17 @@ input:disabled {
   justify-content: space-between;
   align-items: flex-start;
   gap: 20px;
+  width: 100%;
 }
 
 .brand-row {
   gap: 10px;
   min-width: 0;
+  width: 100%;
 }
 
 .header-copy {
+  width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1196,7 +1220,7 @@ input:disabled {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  margin: 7px 0 0;
+  margin: 10px 0 0 8px;
   border: 1px solid var(--chip-border);
   background: var(--chip-bg);
   border-radius: 999px;
@@ -1206,6 +1230,7 @@ input:disabled {
   line-height: 1.2;
   font-weight: 700;
   text-align: left;
+  vertical-align: middle;
 }
 
 button.project-chip {
@@ -1225,7 +1250,7 @@ button.project-chip {
 
 .project-chip-editor {
   width: min(190px, 100%);
-  margin-top: 6px;
+  margin: 10px 0 0 8px;
   border: 1px solid var(--chip-border);
   background: var(--chip-bg);
   border-radius: 8px;
@@ -1427,27 +1452,6 @@ button.project-chip {
   line-height: 1.5;
 }
 
-.focus-project-chip {
-  color: var(--focus-time);
-  font-size: 12px;
-}
-
-.focus-project-chip.project-chip-editor {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--focus-border);
-  color: var(--focus-soft);
-}
-
-.focus-project-chip.project-chip-editor input {
-  color: var(--focus-text);
-}
-
-.focus-project-chip.project-chip-editor button {
-  background: transparent;
-  border-color: var(--focus-border);
-  color: var(--focus-time);
-}
-
 .focus-time {
   font-size: 12px;
   color: var(--focus-time);
@@ -1475,20 +1479,20 @@ button.project-chip {
 
 .pomodoro-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto minmax(52px, auto);
-  gap: 8px;
+  grid-template-columns: auto auto minmax(0, 1fr) auto minmax(48px, auto);
+  gap: 7px;
 }
 
 .pomodoro-presets,
 .pomodoro-player-controls {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .pomodoro-label {
   color: var(--focus-label);
   font-family: var(--font-heading);
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   justify-self: end;
@@ -1502,17 +1506,17 @@ button.project-chip {
 .pomodoro-time {
   color: var(--focus-text);
   font-family: var(--font-heading);
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  min-width: 52px;
+  min-width: 48px;
   text-align: right;
   white-space: nowrap;
 }
 
 @container (max-width: 360px) {
   .pomodoro-row {
-    grid-template-columns: auto auto minmax(0, 1fr) minmax(52px, auto);
+    grid-template-columns: auto auto minmax(0, 1fr) minmax(48px, auto);
   }
 
   .pomodoro-label {
@@ -1532,9 +1536,15 @@ button.project-chip {
 }
 
 .pomodoro-help-btn {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 999px;
+}
+
+.pomodoro-help-btn svg,
+.pomodoro-control svg {
+  width: 13px;
+  height: 13px;
 }
 
 .pomodoro-help {
@@ -1573,7 +1583,7 @@ button.project-chip {
 }
 
 .pomodoro-presets {
-  gap: 6px;
+  gap: 5px;
 }
 
 .pomodoro-chip,
@@ -1587,10 +1597,10 @@ button.project-chip {
 }
 
 .pomodoro-chip {
-  min-width: 42px;
-  height: 30px;
+  min-width: 38px;
+  height: 28px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .pomodoro-chip:disabled {
@@ -1609,8 +1619,8 @@ button.project-chip {
 }
 
 .pomodoro-control {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
 }
 
@@ -1622,8 +1632,8 @@ button.project-chip {
 .done-btn,
 .not-now-btn {
   border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 9px 11px;
+  font-size: 12px;
 }
 
 .done-btn {
@@ -1681,15 +1691,36 @@ button.project-chip {
   cursor: pointer;
 }
 
-.archive-toggle span {
-  min-width: 18px;
-  height: 18px;
+.archive-switch {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
   background: var(--surface-soft);
-  color: var(--text);
-  display: grid;
-  place-items: center;
-  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.archive-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--muted);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.archive-toggle[aria-expanded="true"] .archive-switch {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.archive-toggle[aria-expanded="true"] .archive-switch::after {
+  background: var(--accent-contrast);
+  transform: translateX(12px);
 }
 
 .archive-toggle[aria-expanded="true"] svg {
@@ -2035,11 +2066,18 @@ button.project-chip {
   }
 
   .planner-header h1 {
-    flex-wrap: wrap;
-    gap: 7px;
     font-size: 30px;
     line-height: 1.05;
     margin-top: 4px;
+  }
+
+  .title-row {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .title-actions {
+    padding-top: 0;
   }
 
   .planner-header p {
@@ -2105,7 +2143,7 @@ button.project-chip {
   }
 
   .pomodoro-row {
-    grid-template-columns: auto auto minmax(0, 1fr) auto minmax(50px, auto);
+    grid-template-columns: auto auto minmax(0, 1fr) auto minmax(48px, auto);
     gap: 6px;
   }
 
@@ -2155,7 +2193,7 @@ button.project-chip {
 
 @media (max-width: 420px) {
   .pomodoro-row {
-    grid-template-columns: auto auto minmax(0, 1fr) minmax(50px, auto);
+    grid-template-columns: auto auto minmax(0, 1fr) minmax(48px, auto);
   }
 
   .pomodoro-label {
@@ -2183,23 +2221,35 @@ button.project-chip {
   color: var(--text-soft);
   border: 1px solid var(--chip-border);
   border-radius: 999px;
-  padding: 6px 12px;
+  min-height: 30px;
+  padding: 0 12px;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
+  white-space: nowrap;
 }
 
 .theme-btn svg {
-  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+}
+
+.theme-btn span {
+  line-height: 1;
 }
 
 .theme-btn.active {
   background: var(--accent);
   color: var(--accent-contrast);
   border-color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .random-theme-btn {
@@ -2256,6 +2306,14 @@ button.project-chip {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-dropdown-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  margin: 0;
+  padding: 2px 7px 6px;
 }
 
 .account-menu-item {
@@ -2478,6 +2536,11 @@ button.project-chip {
   text-transform: uppercase;
 }
 
+[data-theme="pixel"] .planner-header h1 {
+  font-size: 24px;
+  line-height: 1.05;
+}
+
 [data-theme="pixel"] .planner-header p,
 [data-theme="pixel"] .panel-copy p,
 [data-theme="pixel"] .muted,
@@ -2496,6 +2559,17 @@ button.project-chip {
 [data-theme="pixel"] .live-count {
   font-size: 15px;
   line-height: 1.2;
+}
+
+[data-theme="pixel"] .project-chip {
+  margin-top: 12px;
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+[data-theme="pixel"] .project-chip-editor {
+  margin-top: 12px;
 }
 
 [data-theme="pixel"] .log-panel h3,
@@ -2548,6 +2622,32 @@ button.project-chip {
   border-color: var(--accent);
 }
 
+[data-theme="pixel"] .pomodoro-row {
+  grid-template-columns: auto auto auto minmax(84px, auto);
+  gap: 5px;
+}
+
+[data-theme="pixel"] .pomodoro-presets,
+[data-theme="pixel"] .pomodoro-player-controls {
+  gap: 5px;
+}
+
+[data-theme="pixel"] .pomodoro-label {
+  display: none;
+}
+
+[data-theme="pixel"] .pomodoro-control,
+[data-theme="pixel"] .pomodoro-help-btn {
+  width: 28px;
+  height: 28px;
+}
+
+[data-theme="pixel"] .pomodoro-chip {
+  min-width: 34px;
+  height: 28px;
+  font-size: 10px;
+}
+
 [data-theme="pixel"] .pomodoro-control,
 [data-theme="pixel"] .pomodoro-chip,
 [data-theme="pixel"] .pomodoro-help-btn {
@@ -2563,6 +2663,11 @@ button.project-chip {
   background: var(--accent);
   border-color: var(--focus-time);
   color: #0f1115;
+}
+
+[data-theme="pixel"] .pomodoro-time {
+  min-width: 84px;
+  font-size: 18px;
 }
 
 [data-theme="pixel"] .pomodoro-help {
@@ -2605,6 +2710,11 @@ button.project-chip {
 
 [data-theme="ghibli"] .hand-title {
   font-size: 30px;
+}
+
+[data-theme="ghibli"] .planner-header h1 {
+  font-size: 30px;
+  line-height: 1.05;
 }
 
 [data-theme="ghibli"] .focus-spotlight {
@@ -2819,6 +2929,7 @@ button.project-chip {
 }
 
 [data-theme="brutalist"] .planner-header h1 {
+  font-size: 30px;
   text-transform: uppercase;
 }
 
@@ -2846,6 +2957,53 @@ button.project-chip {
 
 [data-theme="brutalist"] .theme-btn {
   border-radius: 0;
+}
+
+/* Keep the header footprint stable while themes change the visual style. */
+.planner-header .theme-btn {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  gap: 5px;
+}
+
+[data-theme="pixel"] .planner-header p,
+[data-theme="brutalist"] .planner-header p,
+[data-theme="ghibli"] .planner-header p {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+[data-theme="pixel"] .planner-header .theme-btn,
+[data-theme="brutalist"] .planner-header .theme-btn,
+[data-theme="ghibli"] .planner-header .theme-btn {
+  height: 30px;
+  padding: 0 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.planner-header .theme-btn svg {
+  width: 13px;
+  height: 13px;
+  flex-basis: 13px;
+}
+
+@media (max-width: 640px) {
+  [data-theme="pixel"] .planner-header h1 {
+    font-size: 20px;
+  }
+
+  [data-theme="brutalist"] .planner-header h1,
+  [data-theme="ghibli"] .planner-header h1 {
+    font-size: 28px;
+  }
 }
 
 /* ---------- BACKGROUND IMAGE THEMES ---------- */

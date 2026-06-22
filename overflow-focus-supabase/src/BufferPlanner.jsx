@@ -31,6 +31,7 @@ const POMODORO_BREAK_SECONDS = 5 * 60;
 const POMODORO_AUDIO_SRC = "/audio/pomodoro.mp3";
 const DAILY_GOAL_DEFAULT = 3;
 const POMODORO_STORAGE_VERSION = 1;
+const GUEST_ITEMS_STORAGE_KEY = "the-one-thing-guest-items";
 
 function rotationFromId(id) {
   const str = String(id || "");
@@ -51,6 +52,39 @@ function normalizeItem(row) {
     finishedAt: row.finished_at,
     rot: rotationFromId(row.id),
   };
+}
+
+function createLocalItem({ column, text, projectTag = "", startedAt = new Date().toISOString(), finishedAt = null }) {
+  return {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    user_id: "guest",
+    column,
+    text,
+    project_tag: projectTag || null,
+    started_at: startedAt,
+    finished_at: finishedAt,
+  };
+}
+
+function readGuestItems() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(GUEST_ITEMS_STORAGE_KEY));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function writeGuestItems(items) {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(GUEST_ITEMS_STORAGE_KEY, JSON.stringify(items));
+  } catch (err) {
+    throw new Error("Could not save guest data in this browser.");
+  }
 }
 
 function normalizeProjectTag(value) {
@@ -131,7 +165,7 @@ function getInitialPomodoroState(userId) {
   }
 }
 
-export default function BufferPlanner({ user, theme, onThemeChange }) {
+export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest }) {
   const [thoughts, setThoughts] = useState([]);
   const [setAside, setSetAside] = useState([]);
   const [focus, setFocus] = useState(null);
@@ -167,6 +201,7 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   const audioStartTokenRef = useRef(0);
   const pomodoroRunningRef = useRef(pomodoroRunning);
   const pomodoroMusicEnabledRef = useRef(pomodoroMusicEnabled);
+  const isGuest = Boolean(user.isGuest);
   const accountNotice = accountError || accountMessage;
   const clearedToday = log.filter(isFinishedToday);
   const archivedLog = log.slice(0, ARCHIVE_LIMIT);
@@ -208,6 +243,38 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   const loadItems = useCallback(
     async ({ enforceCap = true } = {}) => {
       setError(null);
+
+      if (isGuest) {
+        setProjectTagAvailable(true);
+
+        let localRows = readGuestItems();
+        const normalized = localRows.map(normalizeItem);
+        const nextThoughts = normalized.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
+
+        if (enforceCap && nextThoughts.length > ACTIVE_CAP) {
+          const overflowIds = new Set(nextThoughts.slice(ACTIVE_CAP).map((item) => item.id));
+          localRows = localRows.map((item) =>
+            overflowIds.has(item.id)
+              ? { ...item, column: "setaside", started_at: new Date().toISOString(), finished_at: null }
+              : item
+          );
+          writeGuestItems(localRows);
+          return loadItems({ enforceCap: false });
+        }
+
+        const nextSetAside = normalized.filter((item) => item.column === "setaside").sort(sortNewestFirst);
+        const focusItems = normalized.filter((item) => item.column === "focus").sort(sortNewestFirst);
+        const nextLog = normalized
+          .filter((item) => item.column === "log")
+          .sort((a, b) => sortNewestFirst(a, b, "finishedAt"));
+
+        setThoughts(nextThoughts);
+        setSetAside(nextSetAside);
+        setFocus(focusItems[0] || null);
+        setLog(nextLog);
+        setLoaded(true);
+        return;
+      }
 
       let { data, error: loadError } = await supabase
         .from("items")
@@ -261,7 +328,7 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
       setLog(nextLog);
       setLoaded(true);
     },
-    [user.id]
+    [isGuest, user.id]
   );
 
   useEffect(() => {
@@ -456,6 +523,17 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
     if (!text) return;
 
     runMutation(async () => {
+      if (isGuest) {
+        const items = readGuestItems();
+        items.unshift(createLocalItem({ column: "thoughts", text, projectTag }));
+        writeGuestItems(items);
+        setDraft("");
+        setDraftProject("");
+        inputRef.current?.focus();
+        await loadItems();
+        return;
+      }
+
       const payload = {
         column: "thoughts",
         text,
@@ -494,6 +572,16 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
 
     const nextProjectTag = normalizeProjectTag(editingProjectValue);
     runMutation(async () => {
+      if (isGuest) {
+        const items = readGuestItems().map((localItem) =>
+          localItem.id === item.id ? { ...localItem, project_tag: nextProjectTag || null } : localItem
+        );
+        writeGuestItems(items);
+        cancelProjectEdit();
+        await loadItems();
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("items")
         .update({ project_tag: nextProjectTag || null })
@@ -562,6 +650,12 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
 
   function removeItem(id) {
     runMutation(async () => {
+      if (isGuest) {
+        writeGuestItems(readGuestItems().filter((item) => item.id !== id));
+        await loadItems();
+        return;
+      }
+
       const { error: deleteError } = await supabase.from("items").delete().eq("id", id).eq("user_id", user.id);
       if (deleteError) throw deleteError;
       await loadItems();
@@ -570,6 +664,18 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
 
   function bringBack(item) {
     runMutation(async () => {
+      if (isGuest) {
+        const now = new Date().toISOString();
+        const items = readGuestItems().map((localItem) =>
+          localItem.id === item.id
+            ? { ...localItem, column: "thoughts", started_at: now, finished_at: null }
+            : localItem
+        );
+        writeGuestItems(items);
+        await loadItems();
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("items")
         .update({ column: "thoughts", started_at: new Date().toISOString(), finished_at: null })
@@ -583,6 +689,18 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
 
   function moveToSetAside(item) {
     runMutation(async () => {
+      if (isGuest) {
+        const now = new Date().toISOString();
+        const items = readGuestItems().map((localItem) =>
+          localItem.id === item.id
+            ? { ...localItem, column: "setaside", started_at: now, finished_at: null }
+            : localItem
+        );
+        writeGuestItems(items);
+        await loadItems();
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("items")
         .update({ column: "setaside", started_at: new Date().toISOString(), finished_at: null })
@@ -597,6 +715,23 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   function promote(item) {
     runMutation(async () => {
       const now = new Date().toISOString();
+
+      if (isGuest) {
+        const items = readGuestItems().map((localItem) => {
+          if (focus && localItem.id === focus.id) {
+            return { ...localItem, column: "log", finished_at: now };
+          }
+
+          if (localItem.id === item.id) {
+            return { ...localItem, column: "focus", started_at: now, finished_at: null };
+          }
+
+          return localItem;
+        });
+        writeGuestItems(items);
+        await loadItems();
+        return;
+      }
 
       if (focus) {
         const { error: logError } = await supabase
@@ -623,6 +758,16 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
     if (!focus) return;
 
     runMutation(async () => {
+      if (isGuest) {
+        const now = new Date().toISOString();
+        const items = readGuestItems().map((localItem) =>
+          localItem.id === focus.id ? { ...localItem, column: "log", finished_at: now } : localItem
+        );
+        writeGuestItems(items);
+        await loadItems();
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("items")
         .update({ column: "log", finished_at: new Date().toISOString() })
@@ -638,6 +783,18 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
     if (!focus) return;
 
     runMutation(async () => {
+      if (isGuest) {
+        const now = new Date().toISOString();
+        const items = readGuestItems().map((localItem) =>
+          localItem.id === focus.id
+            ? { ...localItem, column: "setaside", started_at: now, finished_at: null }
+            : localItem
+        );
+        writeGuestItems(items);
+        await loadItems();
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("items")
         .update({ column: "setaside", started_at: new Date().toISOString(), finished_at: null })
@@ -650,6 +807,8 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   }
 
   async function sendPasswordReset() {
+    if (isGuest) return;
+
     setAccountMessage("");
     setAccountError("");
 
@@ -672,6 +831,8 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   }
 
   function requestDeleteAccount() {
+    if (isGuest) return;
+
     setAccountError("");
     setAccountMessage(
       "Account deletion is manual in this test version. Contact the app owner if you want your account removed."
@@ -680,10 +841,15 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
   }
 
   async function signOut() {
+    if (isGuest) {
+      onExitGuest?.();
+      return;
+    }
+
     await supabase.auth.signOut();
   }
 
-  const accountLabel = user.email || "Account";
+  const accountLabel = isGuest ? "Guest mode" : user.email || "Account";
 
   function timeAgo(timestamp) {
     const time = new Date(timestamp).getTime();
@@ -705,8 +871,9 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
             <div className="header-copy">
               
   <div className="title-row">
-    <h1>
-      The One Thing <span className="brand-mark" aria-hidden="true" />
+    <h1>The One Thing</h1>
+    <div className="title-actions">
+      <span className="brand-mark" aria-hidden="true" />
       <button
         type="button"
         className="app-info-btn"
@@ -716,39 +883,50 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
       >
         <Info size={14} />
       </button>
-    </h1>
-    <div className="account-menu header-account-menu">
-      <button
-        className="app-info-btn account-trigger"
-        type="button"
-        onClick={() => setAccountOpen((open) => !open)}
-        aria-expanded={accountOpen}
-        aria-haspopup="menu"
-        title={accountLabel}
-        aria-label="Account menu"
-      >
-        <UserCircle size={14} aria-hidden="true" />
-      </button>
+      <div className="account-menu header-account-menu">
+        <button
+          className="app-info-btn account-trigger"
+          type="button"
+          onClick={() => setAccountOpen((open) => !open)}
+          aria-expanded={accountOpen}
+          aria-haspopup="menu"
+          title={accountLabel}
+          aria-label="Account menu"
+        >
+          <UserCircle size={14} aria-hidden="true" />
+        </button>
 
-      {accountOpen && (
-        <div className="account-dropdown" role="menu">
-          <div className="account-dropdown-email" title={accountLabel}>
-            {accountLabel}
+        {accountOpen && (
+          <div className="account-dropdown" role="menu">
+            <div className="account-dropdown-email" title={accountLabel}>
+              {accountLabel}
+            </div>
+
+            {isGuest ? (
+              <>
+                <p className="account-dropdown-note">Saved only in this browser.</p>
+                <button className="account-menu-item" type="button" onClick={signOut} role="menuitem">
+                  <LogOut size={14} /> Sign in to sync
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="account-menu-item" type="button" onClick={sendPasswordReset} role="menuitem">
+                  <KeyRound size={14} /> Reset password
+                </button>
+
+                <button className="account-menu-item danger" type="button" onClick={requestDeleteAccount} role="menuitem">
+                  <Trash2 size={14} /> Delete account
+                </button>
+
+                <button className="account-menu-item" type="button" onClick={signOut} role="menuitem">
+                  <LogOut size={14} /> Sign out
+                </button>
+              </>
+            )}
           </div>
-
-          <button className="account-menu-item" type="button" onClick={sendPasswordReset} role="menuitem">
-            <KeyRound size={14} /> Reset password
-          </button>
-
-          <button className="account-menu-item danger" type="button" onClick={requestDeleteAccount} role="menuitem">
-            <Trash2 size={14} /> Delete account
-          </button>
-
-          <button className="account-menu-item" type="button" onClick={signOut} role="menuitem">
-            <LogOut size={14} /> Sign out
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   </div>
   {appInfoOpen && (
@@ -932,7 +1110,6 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
                 {focus ? (
                   <p className="focus-title">
                     {focus.text}
-                    {renderProjectTagControl(focus, "focus-project-chip")}
                   </p>
               ) : (
                 <p className="focus-empty">Nothing chosen yet. Pick one thought from the left - just one - and it lands here.</p>
@@ -1047,7 +1224,7 @@ export default function BufferPlanner({ user, theme, onThemeChange }) {
                 aria-controls="archive-log"
               >
                 Archive
-                <span>{archivedLog.length}</span>
+                <span className="archive-switch" aria-hidden="true" />
                 <ChevronDown size={14} />
               </button>
             </div>
