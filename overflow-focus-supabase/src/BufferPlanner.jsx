@@ -3,7 +3,6 @@ import {
   Plus,
   X,
   ArrowRight,
-  ArrowUp,
   ArrowLeft,
   Check,
   Clock,
@@ -155,6 +154,7 @@ const [accountError, setAccountError] = useState("");
   const [pomodoroHelpOpen, setPomodoroHelpOpen] = useState(false);
   const [pomodoroMusicEnabled, setPomodoroMusicEnabled] = useState(true);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [openProjectStat, setOpenProjectStat] = useState(null);
   const [appInfoOpen, setAppInfoOpen] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(() => {
     if (typeof window === "undefined") return DAILY_GOAL_DEFAULT;
@@ -169,7 +169,7 @@ const [accountError, setAccountError] = useState("");
   const pomodoroMusicEnabledRef = useRef(pomodoroMusicEnabled);
   const accountNotice = accountError || accountMessage;
   const clearedToday = log.filter(isFinishedToday);
-  const archivedLog = log.filter((item) => !isFinishedToday(item)).slice(0, ARCHIVE_LIMIT);
+  const archivedLog = log.slice(0, ARCHIVE_LIMIT);
   const dailyGoalProgress = Math.min(clearedToday.length, dailyGoal);
   const dailyGoalComplete = clearedToday.length >= dailyGoal;
   const dailyGoalPercent = Math.round((dailyGoalProgress / dailyGoal) * 100);
@@ -705,18 +705,53 @@ function requestDeleteAccount() {
           <div className="brand-row">
             <div className="header-copy">
               
-  <h1>
-    The One Thing <span className="brand-mark" aria-hidden="true" />
-    <button
-      type="button"
-      className="app-info-btn"
-      onClick={() => setAppInfoOpen((open) => !open)}
-      aria-expanded={appInfoOpen}
-      aria-label="What The One Thing is for"
-    >
-      <Info size={14} />
-    </button>
-  </h1>
+  <div className="title-row">
+    <h1>
+      The One Thing <span className="brand-mark" aria-hidden="true" />
+      <button
+        type="button"
+        className="app-info-btn"
+        onClick={() => setAppInfoOpen((open) => !open)}
+        aria-expanded={appInfoOpen}
+        aria-label="What The One Thing is for"
+      >
+        <Info size={14} />
+      </button>
+    </h1>
+    <div className="account-menu header-account-menu">
+      <button
+        className="app-info-btn account-trigger"
+        type="button"
+        onClick={() => setAccountOpen((open) => !open)}
+        aria-expanded={accountOpen}
+        aria-haspopup="menu"
+        title={accountLabel}
+        aria-label="Account menu"
+      >
+        <UserCircle size={14} aria-hidden="true" />
+      </button>
+
+      {accountOpen && (
+        <div className="account-dropdown" role="menu">
+          <div className="account-dropdown-email" title={accountLabel}>
+            {accountLabel}
+          </div>
+
+          <button className="account-menu-item" type="button" onClick={sendPasswordReset} role="menuitem">
+            <KeyRound size={14} /> Reset password
+          </button>
+
+          <button className="account-menu-item danger" type="button" onClick={requestDeleteAccount} role="menuitem">
+            <Trash2 size={14} /> Delete account
+          </button>
+
+          <button className="account-menu-item" type="button" onClick={signOut} role="menuitem">
+            <LogOut size={14} /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
   {appInfoOpen && (
     <div className="app-info-popover" role="note">
       <p>
@@ -734,43 +769,6 @@ function requestDeleteAccount() {
   </div>
 </div>
             </div>
-
-          <div className="header-actions">
-            <div className="account-menu">
-              <button
-                className="theme-btn account-trigger"
-                type="button"
-                onClick={() => setAccountOpen((open) => !open)}
-                aria-expanded={accountOpen}
-                aria-haspopup="menu"
-                title={accountLabel}
-              >
-                <UserCircle size={14} aria-hidden="true" />
-                <span className="account-trigger-label">{accountLabel}</span>
-                <ChevronDown size={13} aria-hidden="true" />
-              </button>
-
-              {accountOpen && (
-                <div className="account-dropdown" role="menu">
-                  <div className="account-dropdown-email" title={accountLabel}>
-                    {accountLabel}
-                  </div>
-
-                  <button className="account-menu-item" type="button" onClick={sendPasswordReset} role="menuitem">
-                    <KeyRound size={14} /> Reset password
-                  </button>
-
-                  <button className="account-menu-item danger" type="button" onClick={requestDeleteAccount} role="menuitem">
-                    <Trash2 size={14} /> Delete account
-                  </button>
-
-                  <button className="account-menu-item" type="button" onClick={signOut} role="menuitem">
-                    <LogOut size={14} /> Sign out
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
           </div>
 
         {error && <p className="error-text">{error}</p>}
@@ -798,7 +796,7 @@ function requestDeleteAccount() {
           <div className="panel-title-row">
             <div className="panel-title-copy">
               <h2 className="hand-title">whatever just crossed my mind</h2>
-              <p>Fresh brain-noise goes here. Keep only the most current few, then focus one or park it for later.</p>
+              <p>Fresh brain-noise goes here. Tap play to focus it in The One Thing, or arrow it to Later.</p>
             </div>
             <span className="live-count">{thoughts.length}/{ACTIVE_CAP} live</span>
           </div>
@@ -851,22 +849,22 @@ function requestDeleteAccount() {
                     {renderProjectTagControl(item)}
                   </span>
                   <button
+                    onClick={() => promote(item)}
+                    className="bp-thought-btn promote-btn"
+                    title="Focus in The One Thing player"
+                    aria-label={`Move ${item.text} to The One Thing player`}
+                    disabled={busy}
+                  >
+                    <Play size={13} />
+                  </button>
+                  <button
                     onClick={() => moveToSetAside(item)}
                     className="bp-thought-btn set-aside-btn"
-                    title="Set aside for later"
+                    title="Move to Set aside for later"
                     aria-label={`Move ${item.text} to Set aside for later`}
                     disabled={busy}
                   >
                     <ArrowRight size={14} />
-                  </button>
-                  <button
-                    onClick={() => promote(item)}
-                    className="bp-thought-btn promote-btn"
-                    title="Make this the one thing"
-                    aria-label={`Move ${item.text} to The One Thing`}
-                    disabled={busy}
-                  >
-                    <Play size={13} />
                   </button>
                   <button
                     onClick={() => removeItem(item.id)}
@@ -886,7 +884,7 @@ function requestDeleteAccount() {
         <section aria-label="Set aside for later" className="panel panel-aside">
           <div className="panel-copy">
             <h2>set aside for later</h2>
-            <p>Ideas worth keeping, just not right now. Bring them back when they start feeling loud again.</p>
+            <p>Saved for later. Bring something back to live thoughts when it feels ready to compete for focus.</p>
           </div>
 
           <div className="bp-scroll aside-list">
@@ -907,15 +905,6 @@ function requestDeleteAccount() {
                     disabled={busy}
                   >
                     <ArrowLeft size={12} />
-                  </button>
-                  <button
-                    onClick={() => promote(item)}
-                    className="small-outline-btn green"
-                    title="Make this the one thing"
-                    aria-label={`Move ${item.text} to The One Thing`}
-                    disabled={busy}
-                  >
-                    <ArrowUp size={12} />
                   </button>
                   <button
                     onClick={() => removeItem(item.id)}
@@ -1125,15 +1114,41 @@ function requestDeleteAccount() {
                 <div className="project-stat-list">
                   {projectStats.map(([project, count]) => {
                     const percent = Math.round((count / totalProjectTaggedItems) * 100);
+                    const projectItems = log
+                      .filter((item) => item.projectTag === project)
+                      .sort((a, b) => sortNewestFirst(a, b, "finishedAt"))
+                      .slice(0, 6);
+                    const projectOpen = openProjectStat === project;
+
                     return (
-                      <div key={project} className="project-stat-row">
-                        <span>#{project}</span>
-                        <div className="project-stat-track" aria-hidden="true">
-                          <i style={{ width: `${Math.max(12, Math.round((count / maxProjectCount) * 100))}%` }} />
-                        </div>
-                        <strong>
-                          {percent}% <small>{count}</small>
-                        </strong>
+                      <div key={project} className="project-stat-group">
+                        <button
+                          type="button"
+                          className="project-stat-row"
+                          onClick={() => setOpenProjectStat(projectOpen ? null : project)}
+                          aria-expanded={projectOpen}
+                        >
+                          <span>#{project}</span>
+                          <div className="project-stat-track" aria-hidden="true">
+                            <i style={{ width: `${Math.max(12, Math.round((count / maxProjectCount) * 100))}%` }} />
+                          </div>
+                          <strong>
+                            {percent}% <small>{count}</small>
+                          </strong>
+                          <ChevronDown size={13} aria-hidden="true" />
+                        </button>
+
+                        {projectOpen && (
+                          <div className="project-stat-detail">
+                            {projectItems.map((item) => (
+                              <div key={item.id + item.finishedAt} className="project-stat-task">
+                                <Check size={11} aria-hidden="true" />
+                                <span>{item.text}</span>
+                                <small>{timeAgo(item.finishedAt)}</small>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1142,16 +1157,11 @@ function requestDeleteAccount() {
             </div>
 
             {archiveOpen && (
-              <div id="archive-log" className="archive-drawer">
-                <div className="archive-drawer-title">
-                  <h4>Archive</h4>
-                  <button type="button" onClick={() => setArchiveOpen(false)} aria-label="Close archive">
-                    <X size={13} />
-                  </button>
-                </div>
+              <div id="archive-log" className="archive-inline">
+                <h4>Last 100 cleared</h4>
                 <div className="bp-scroll archive-list">
                   {archivedLog.length === 0 ? (
-                    <p className="muted roomy">Older cleared items will collect here after today.</p>
+                    <p className="muted roomy">Completed tasks will collect here.</p>
                   ) : (
                     archivedLog.map((item) => (
                       <div key={item.id + item.finishedAt} className="log-item">
