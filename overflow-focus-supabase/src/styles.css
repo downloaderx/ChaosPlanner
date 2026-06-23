@@ -1929,6 +1929,13 @@ button.project-chip {
   white-space: nowrap;
 }
 
+.project-stat-more {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .archive-inline {
   margin-top: 14px;
   padding-top: 12px;
@@ -2352,9 +2359,9 @@ button.project-chip {
   z-index: 30;
   width: min(420px, calc(100vw - 32px));
   transform: translateX(-50%);
-  background: var(--accent);
-  color: var(--accent-contrast);
-  border: var(--panel-border-width) var(--panel-border-style) var(--accent);
+  background: #ffffff;
+  color: #263126;
+  border: var(--panel-border-width) var(--panel-border-style) rgba(38, 49, 38, 0.18);
   border-radius: 14px;
   padding: 12px 12px 12px 16px;
   display: flex;
@@ -2391,6 +2398,74 @@ button.project-chip {
 .account-toast-close:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
+}
+
+.guest-sync-prompt {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 28;
+  width: min(390px, calc(100vw - 32px));
+  background: #ffffff;
+  color: #263126;
+  border: var(--panel-border-width) var(--panel-border-style) rgba(38, 49, 38, 0.18);
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 22px 48px -30px rgba(31, 43, 34, 0.72);
+}
+
+.guest-sync-prompt div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.guest-sync-prompt strong {
+  color: #263126;
+  font-size: 13px;
+}
+
+.guest-sync-prompt span {
+  color: #5f6f63;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.guest-sync-primary,
+.guest-sync-later {
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.guest-sync-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.guest-sync-later {
+  background: #eef2e9;
+  color: #465545;
+}
+
+@media (max-width: 560px) {
+  .guest-sync-prompt {
+    right: 16px;
+    bottom: 16px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .guest-sync-prompt div {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ---------- Theme-specific flourishes ---------- */

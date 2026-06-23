@@ -15,6 +15,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState("sign-in");
   const [guestMode, setGuestMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(GUEST_MODE_STORAGE_KEY) === "true";
@@ -85,11 +86,13 @@ export default function App() {
   }
 
   function startGuestMode() {
+    setAuthInitialMode("sign-in");
     setGuestMode(true);
     localStorage.setItem(GUEST_MODE_STORAGE_KEY, "true");
   }
 
-  function exitGuestMode() {
+  function exitGuestMode(nextAuthMode = "sign-in") {
+    setAuthInitialMode(nextAuthMode);
     setGuestMode(false);
     localStorage.removeItem(GUEST_MODE_STORAGE_KEY);
   }
@@ -99,7 +102,7 @@ export default function App() {
   }
 
   if (!session?.user) {
-    return <Auth theme={theme} onThemeChange={setTheme} onContinueAsGuest={startGuestMode} />;
+    return <Auth initialMode={authInitialMode} theme={theme} onThemeChange={setTheme} onContinueAsGuest={startGuestMode} />;
   }
 
   return <BufferPlanner user={session.user} theme={theme} onThemeChange={setTheme} />;

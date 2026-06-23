@@ -26,12 +26,17 @@ import { ThemeSwitcher } from "./theme.jsx";
 const ROTATIONS = [-2, 1.5, -1, 2, -1.5, 1, -2.5, 0.5];
 const ACTIVE_CAP = 6;
 const ARCHIVE_LIMIT = 100;
+const PROJECT_TASK_PREVIEW_LIMIT = 5;
 const POMODORO_FOCUS_SECONDS = 25 * 60;
 const POMODORO_BREAK_SECONDS = 5 * 60;
 const POMODORO_AUDIO_SRC = "/audio/pomodoro.mp3";
 const DAILY_GOAL_DEFAULT = 3;
 const POMODORO_STORAGE_VERSION = 1;
 const GUEST_ITEMS_STORAGE_KEY = "the-one-thing-guest-items";
+const GUEST_SYNC_PROMPT_SNOOZE_KEY = "the-one-thing-guest-sync-prompt-snoozed-at";
+const GUEST_SYNC_PROMPT_DELAY_MS = 2 * 60 * 1000;
+const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
+const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
 
 function rotationFromId(id) {
   const str = String(id || "");
@@ -85,6 +90,38 @@ function writeGuestItems(items) {
   } catch (err) {
     throw new Error("Could not save guest data in this browser.");
   }
+}
+
+function guestSyncPromptSnoozed() {
+  if (typeof window === "undefined") return true;
+
+  const snoozedAt = Number(localStorage.getItem(GUEST_SYNC_PROMPT_SNOOZE_KEY));
+  return Number.isFinite(snoozedAt) && Date.now() - snoozedAt < GUEST_SYNC_PROMPT_SNOOZE_MS;
+}
+
+function snoozeGuestSyncPrompt() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(GUEST_SYNC_PROMPT_SNOOZE_KEY, String(Date.now()));
+}
+
+function prepareGuestItemsForInsert(items, userId, includeProjectTag = true) {
+  return items
+    .filter((item) => item?.text && ["thoughts", "setaside", "focus", "log"].includes(item.column))
+    .map((item) => {
+      const row = {
+        user_id: userId,
+        column: item.column,
+        text: item.text,
+        started_at: item.started_at || new Date().toISOString(),
+        finished_at: item.finished_at || null,
+      };
+
+      if (includeProjectTag) {
+        row.project_tag = item.project_tag || null;
+      }
+
+      return row;
+    });
 }
 
 function normalizeProjectTag(value) {
@@ -190,6 +227,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [openProjectStat, setOpenProjectStat] = useState(null);
   const [appInfoOpen, setAppInfoOpen] = useState(false);
+  const [guestSyncPromptVisible, setGuestSyncPromptVisible] = useState(false);
+  const [guestSyncPromptHandled, setGuestSyncPromptHandled] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(() => {
     if (typeof window === "undefined") return DAILY_GOAL_DEFAULT;
     const stored = Number(localStorage.getItem(`daily-goal-${user.id}`));
@@ -239,6 +278,34 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     },
     []
   );
+
+  const migrateGuestItems = useCallback(async () => {
+    if (isGuest || typeof window === "undefined") return;
+
+    const guestItems = readGuestItems();
+    if (guestItems.length === 0) return;
+
+    let rows = prepareGuestItemsForInsert(guestItems, user.id);
+    if (rows.length === 0) {
+      localStorage.removeItem(GUEST_ITEMS_STORAGE_KEY);
+      return;
+    }
+
+    let { error: migrationError } = await supabase.from("items").insert(rows);
+
+    if (migrationError && isMissingProjectTagColumn(migrationError)) {
+      rows = prepareGuestItemsForInsert(guestItems, user.id, false);
+      const retry = await supabase.from("items").insert(rows);
+      migrationError = retry.error;
+      setProjectTagAvailable(false);
+    }
+
+    if (migrationError) throw migrationError;
+
+    localStorage.removeItem(GUEST_ITEMS_STORAGE_KEY);
+    localStorage.removeItem(GUEST_SYNC_PROMPT_SNOOZE_KEY);
+    setAccountMessage("Imported notes from guest mode into this account.");
+  }, [isGuest, user.id]);
 
   const loadItems = useCallback(
     async ({ enforceCap = true } = {}) => {
@@ -332,11 +399,51 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   );
 
   useEffect(() => {
-    loadItems().catch((err) => {
-      setError(err.message || "Couldn't load your saved data.");
-      setLoaded(true);
-    });
+    let cancelled = false;
+
+    async function loadPlanner() {
+      try {
+        if (!cancelled) await loadItems();
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || "Couldn't load your saved data.");
+          setLoaded(true);
+        }
+      }
+    }
+
+    loadPlanner();
+
+    return () => {
+      cancelled = true;
+    };
   }, [loadItems]);
+
+  useEffect(() => {
+    if (guestSyncPromptHandled || guestSyncPromptVisible || guestSyncPromptSnoozed()) return undefined;
+
+    if (!isGuest) {
+      if (readGuestItems().length > 0) {
+        setGuestSyncPromptVisible(true);
+      }
+      return undefined;
+    }
+
+    function maybeShowGuestPrompt() {
+      if (readGuestItems().length >= GUEST_SYNC_PROMPT_MIN_ITEMS) {
+        setGuestSyncPromptVisible(true);
+      }
+    }
+
+    maybeShowGuestPrompt();
+    const timerId = window.setTimeout(() => {
+      if (readGuestItems().length > 0 && !guestSyncPromptSnoozed()) {
+        setGuestSyncPromptVisible(true);
+      }
+    }, GUEST_SYNC_PROMPT_DELAY_MS);
+
+    return () => window.clearTimeout(timerId);
+  }, [guestSyncPromptHandled, guestSyncPromptVisible, isGuest, thoughts.length, setAside.length, focus, log.length]);
 
   useEffect(() => {
     pomodoroRunningRef.current = pomodoroRunning;
@@ -535,6 +642,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       }
 
       const payload = {
+        user_id: user.id,
         column: "thoughts",
         text,
         started_at: new Date().toISOString(),
@@ -851,6 +959,27 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
   const accountLabel = isGuest ? "Guest mode" : user.email || "Account";
 
+  function createAccountFromGuest() {
+    setGuestSyncPromptHandled(true);
+    setGuestSyncPromptVisible(false);
+    onExitGuest?.("sign-up");
+  }
+
+  function dismissGuestSyncPrompt() {
+    setGuestSyncPromptHandled(true);
+    snoozeGuestSyncPrompt();
+    setGuestSyncPromptVisible(false);
+  }
+
+  function importGuestItemsToAccount() {
+    setGuestSyncPromptHandled(true);
+    setGuestSyncPromptVisible(false);
+    runMutation(async () => {
+      await migrateGuestItems();
+      await loadItems();
+    });
+  }
+
   function timeAgo(timestamp) {
     const time = new Date(timestamp).getTime();
     if (!time) return "some time ago";
@@ -964,6 +1093,30 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             aria-label="Dismiss message"
           >
             <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {guestSyncPromptVisible && (
+        <div className="guest-sync-prompt" role="status" aria-live="polite">
+          <div>
+            <strong>{isGuest ? "Save this for real?" : "Import guest notes?"}</strong>
+            <span>
+              {isGuest
+                ? "Create an account first. After signing in, you can choose whether to import these guest notes."
+                : "This browser has notes from guest mode. Add them to this account only if you want them here."}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="guest-sync-primary"
+            onClick={isGuest ? createAccountFromGuest : importGuestItemsToAccount}
+            disabled={busy}
+          >
+            {isGuest ? "Create account" : "Import"}
+          </button>
+          <button type="button" className="guest-sync-later" onClick={dismissGuestSyncPrompt} aria-label="Remind me later">
+            {isGuest ? "Later" : "Not now"}
           </button>
         </div>
       )}
@@ -1292,7 +1445,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     const projectItems = log
                       .filter((item) => item.projectTag === project)
                       .sort((a, b) => sortNewestFirst(a, b, "finishedAt"))
-                      .slice(0, 6);
+                      .slice(0, PROJECT_TASK_PREVIEW_LIMIT);
+                    const hiddenProjectItems = Math.max(0, count - projectItems.length);
                     const projectOpen = openProjectStat === project;
 
                     return (
@@ -1322,6 +1476,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                                 <small>{timeAgo(item.finishedAt)}</small>
                               </div>
                             ))}
+                            {hiddenProjectItems > 0 && (
+                              <p className="project-stat-more">+{hiddenProjectItems} older</p>
+                            )}
                           </div>
                         )}
                       </div>

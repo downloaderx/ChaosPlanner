@@ -14,8 +14,15 @@ function getPasswordErrors(password) {
   return errors;
 }
 
-export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, onThemeChange, onContinueAsGuest }) {
-  const [mode, setMode] = useState(recoveryMode ? "update-password" : "sign-in");
+export default function Auth({
+  recoveryMode = false,
+  initialMode = "sign-in",
+  onRecoveryComplete,
+  theme,
+  onThemeChange,
+  onContinueAsGuest,
+}) {
+  const [mode, setMode] = useState(recoveryMode ? "update-password" : initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -27,8 +34,13 @@ export default function Auth({ recoveryMode = false, onRecoveryComplete, theme, 
       setMode("update-password");
       setError("");
       setMessage("Enter a new password for your account.");
+      return;
     }
-  }, [recoveryMode]);
+
+    setMode(initialMode);
+    setError("");
+    setMessage("");
+  }, [initialMode, recoveryMode]);
 
   async function handleSubmit(event) {
     event.preventDefault();
