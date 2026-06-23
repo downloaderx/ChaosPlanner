@@ -52,6 +52,8 @@ export function ThemeSwitcher({ theme, onChange }) {
             className={`theme-btn${theme === t.id ? " active" : ""}`}
             onClick={() => onChange(t.id)}
             aria-pressed={theme === t.id}
+            aria-label={`${t.label} theme`}
+            title={`${t.label} theme`}
           >
             <Icon size={13} strokeWidth={2.2} aria-hidden="true" />
             <span>{t.label}</span>
@@ -59,7 +61,13 @@ export function ThemeSwitcher({ theme, onChange }) {
         );
       })}
 
-      <button type="button" className="theme-btn random-theme-btn" onClick={randomizeTheme} title="Random theme">
+      <button
+        type="button"
+        className="theme-btn random-theme-btn"
+        onClick={randomizeTheme}
+        aria-label="Random theme"
+        title="Random theme"
+      >
         <Shuffle size={13} strokeWidth={2.2} aria-hidden="true" />
         <span>Random</span>
       </button>

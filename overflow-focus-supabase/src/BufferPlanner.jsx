@@ -529,6 +529,16 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (!dailyGoalComplete) setGoalCelebrationDismissed(false);
   }, [dailyGoalComplete]);
 
+  useEffect(() => {
+    if (!accountMessage) return undefined;
+
+    const timerId = window.setTimeout(() => {
+      setAccountMessage("");
+    }, 4500);
+
+    return () => window.clearTimeout(timerId);
+  }, [accountMessage]);
+
   function updateDailyGoal(event) {
     const nextGoal = Number(event.target.value);
     if (!Number.isFinite(nextGoal)) return;
@@ -910,6 +920,36 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         .eq("user_id", user.id);
 
       if (updateError) throw updateError;
+      await loadItems();
+    });
+  }
+
+  function deleteProjectTag(project) {
+    const confirmed = window.confirm(
+      `Remove #${project} from all tasks? The tasks will stay in your planner, but this project will disappear from the mix.`
+    );
+
+    if (!confirmed) return;
+
+    runMutation(async () => {
+      if (isGuest) {
+        const items = readGuestItems().map((localItem) =>
+          localItem.project_tag === project ? { ...localItem, project_tag: null } : localItem
+        );
+        writeGuestItems(items);
+        setOpenProjectStat((openProject) => (openProject === project ? null : openProject));
+        await loadItems();
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from("items")
+        .update({ project_tag: null })
+        .eq("user_id", user.id)
+        .eq("project_tag", project);
+
+      if (updateError) throw updateError;
+      setOpenProjectStat((openProject) => (openProject === project ? null : openProject));
       await loadItems();
     });
   }
@@ -1464,6 +1504,19 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                           <strong>
                             {percent}% <small>{count}</small>
                           </strong>
+                          <button
+                            type="button"
+                            className="project-stat-delete"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              deleteProjectTag(project);
+                            }}
+                            disabled={busy}
+                            title={`Remove #${project}`}
+                            aria-label={`Remove project tag ${project}`}
+                          >
+                            <Trash2 size={11} />
+                          </button>
                           <ChevronDown size={13} aria-hidden="true" />
                         </button>
 

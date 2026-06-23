@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LogIn, Play, Sparkles, UserPlus } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
 
@@ -28,6 +29,7 @@ export default function Auth({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [userEngaged, setUserEngaged] = useState(false);
 
   useEffect(() => {
     if (recoveryMode) {
@@ -189,101 +191,169 @@ export default function Auth({
     return "An anti-chaos planner for noisy minds.";
   }
 
+  function getSubmitIcon() {
+    if (mode === "sign-up") return <UserPlus size={15} aria-hidden="true" />;
+    return <LogIn size={15} aria-hidden="true" />;
+  }
+
+  function markUserEngaged() {
+    setUserEngaged(true);
+  }
+
   return (
-    <main className="auth-shell">
-      <section className="auth-card">
-        <span className="logo-mark" aria-hidden="true" />
+    <main className={userEngaged ? "auth-shell user-engaged" : "auth-shell"}>
+      <div className="auth-creature-path" aria-hidden="true">
+        <div className="auth-creature-runner">
+          <span className="auth-creature-shadow" />
+          <span className="auth-creature-sprite" />
+        </div>
+      </div>
 
-        <h1>{getTitle()}</h1>
+      <section className="auth-premenu">
+        <div className="auth-story-panel">
+          <div className="auth-brand-row">
+            <span className="logo-mark" aria-hidden="true" />
+            {theme && onThemeChange && <ThemeSwitcher theme={theme} onChange={onThemeChange} />}
+          </div>
 
-        <p className="auth-subtitle">{getSubtitle()}</p>
+          <div className="auth-story-copy">
+            <span className="auth-kicker">For the “wait, also...” brain</span>
+            <h1>The One Thing</h1>
+            <p>
+              You start one task, remember seven others, then lose the thread. Drop every thought, choose one for now,
+              and let the rest wait without vanishing.
+            </p>
+          </div>
 
-        {theme && onThemeChange && <ThemeSwitcher theme={theme} onChange={onThemeChange} />}
+          <div className="auth-feature-grid" aria-label="Additional features">
+            <div>
+              <Sparkles size={15} aria-hidden="true" />
+              <span>Guest mode first</span>
+            </div>
+            <div>
+              <Sparkles size={15} aria-hidden="true" />
+              <span>Project tags</span>
+            </div>
+            <div>
+              <Sparkles size={15} aria-hidden="true" />
+              <span>Pomodoro focus</span>
+            </div>
+            <div>
+              <Sparkles size={15} aria-hidden="true" />
+              <span>Completion mix</span>
+            </div>
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <section className="auth-card">
+          <h2>{getTitle()}</h2>
+
+          <p className="auth-subtitle">{getSubtitle()}</p>
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            {mode !== "update-password" && (
+              <label>
+                Email
+                <input
+                  value={email}
+                  onFocus={markUserEngaged}
+                  onChange={(event) => {
+                    markUserEngaged();
+                    setEmail(event.target.value);
+                  }}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                />
+              </label>
+            )}
+
+            {mode !== "reset-password" && (
+              <label>
+                Password
+                <input
+                  value={password}
+                  onFocus={markUserEngaged}
+                  onChange={(event) => {
+                    markUserEngaged();
+                    setPassword(event.target.value);
+                  }}
+                  type="password"
+                  autoComplete={mode === "sign-up" || mode === "update-password" ? "new-password" : "current-password"}
+                  placeholder={mode === "sign-in" ? "your password" : "8+ chars, Aa, 1, symbol"}
+                />
+
+                {(mode === "sign-up" || mode === "update-password") && (
+                  <small style={{ color: "#6F7A65", fontSize: 12 }}>
+                    Use at least 8 characters with uppercase, lowercase, number, and symbol.
+                  </small>
+                )}
+              </label>
+            )}
+
+            {error && <p className="auth-error">{error}</p>}
+            {message && <p className="auth-message">{message}</p>}
+
+            <button type="submit" disabled={busy}>
+              {!busy && getSubmitIcon()}
+              {busy
+                ? "one sec..."
+                : mode === "sign-up"
+                  ? "Create account"
+                  : mode === "reset-password"
+                    ? "Send reset link"
+                    : mode === "update-password"
+                      ? "Update password"
+                      : "Sign in"}
+            </button>
+          </form>
+
+          {mode === "sign-in" && (
+            <button
+              className="mode-switch"
+              type="button"
+              onClick={() => {
+                setMode("reset-password");
+                setError("");
+                setMessage("");
+                setPassword("");
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
+
           {mode !== "update-password" && (
-            <label>
-              Email
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-              />
-            </label>
+            <button
+              className="mode-switch"
+              type="button"
+              onClick={() => {
+                setMode(mode === "sign-in" ? "sign-up" : "sign-in");
+                setError("");
+                setMessage("");
+                setPassword("");
+              }}
+            >
+              {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
+            </button>
           )}
 
-          {mode !== "reset-password" && (
-            <label>
-              Password
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type="password"
-                autoComplete={mode === "sign-up" || mode === "update-password" ? "new-password" : "current-password"}
-                placeholder={mode === "sign-in" ? "your password" : "8+ chars, Aa, 1, symbol"}
-              />
+          {!recoveryMode && (
+            <>
+              <div className="auth-divider">
+                <span>or skip the account for now</span>
+              </div>
 
-              {(mode === "sign-up" || mode === "update-password") && (
-                <small style={{ color: "#6F7A65", fontSize: 12 }}>
-                  Use at least 8 characters with uppercase, lowercase, number, and symbol.
-                </small>
-              )}
-            </label>
+              <div className="guest-entry">
+                <button className="guest-primary" type="button" onClick={onContinueAsGuest}>
+                  <Play size={16} aria-hidden="true" />
+                  Try in guest mode
+                </button>
+                <p>Guest notes stay in this browser. You can import them later only if you choose to.</p>
+              </div>
+            </>
           )}
-
-          {error && <p className="auth-error">{error}</p>}
-          {message && <p className="auth-message">{message}</p>}
-
-          <button type="submit" disabled={busy}>
-            {busy
-              ? "one sec..."
-              : mode === "sign-up"
-                ? "Create account"
-                : mode === "reset-password"
-                  ? "Send reset link"
-                  : mode === "update-password"
-                    ? "Update password"
-                    : "Sign in"}
-          </button>
-        </form>
-
-        {mode === "sign-in" && (
-          <button
-            className="mode-switch"
-            type="button"
-            onClick={() => {
-              setMode("reset-password");
-              setError("");
-              setMessage("");
-              setPassword("");
-            }}
-          >
-            Forgot password?
-          </button>
-        )}
-
-        {mode !== "update-password" && (
-          <button
-            className="mode-switch"
-            type="button"
-            onClick={() => {
-              setMode(mode === "sign-in" ? "sign-up" : "sign-in");
-              setError("");
-              setMessage("");
-              setPassword("");
-            }}
-          >
-            {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
-          </button>
-        )}
-
-        {!recoveryMode && (
-          <button className="mode-switch guest-switch" type="button" onClick={onContinueAsGuest}>
-            Continue without account
-          </button>
-        )}
+        </section>
       </section>
     </main>
   );
