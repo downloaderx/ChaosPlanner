@@ -29,7 +29,7 @@ export default function Auth({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [userEngaged, setUserEngaged] = useState(false);
+  const [formActive, setFormActive] = useState(false);
 
   useEffect(() => {
     if (recoveryMode) {
@@ -196,12 +196,20 @@ export default function Auth({
     return <LogIn size={15} aria-hidden="true" />;
   }
 
-  function markUserEngaged() {
-    setUserEngaged(true);
+  function activateForm() {
+    setFormActive(true);
+  }
+
+  function deactivateForm() {
+    window.setTimeout(() => {
+      if (!document.activeElement?.closest?.(".auth-form")) {
+        setFormActive(false);
+      }
+    }, 80);
   }
 
   return (
-    <main className={userEngaged ? "auth-shell user-engaged" : "auth-shell"}>
+    <main className={formActive ? "auth-shell form-active" : "auth-shell"}>
       <div className="auth-creature-path" aria-hidden="true">
         <div className="auth-creature-runner">
           <span className="auth-creature-shadow" />
@@ -256,9 +264,9 @@ export default function Auth({
                 Email
                 <input
                   value={email}
-                  onFocus={markUserEngaged}
+                  onFocus={activateForm}
+                  onBlur={deactivateForm}
                   onChange={(event) => {
-                    markUserEngaged();
                     setEmail(event.target.value);
                   }}
                   type="email"
@@ -273,9 +281,9 @@ export default function Auth({
                 Password
                 <input
                   value={password}
-                  onFocus={markUserEngaged}
+                  onFocus={activateForm}
+                  onBlur={deactivateForm}
                   onChange={(event) => {
-                    markUserEngaged();
                     setPassword(event.target.value);
                   }}
                   type="password"
