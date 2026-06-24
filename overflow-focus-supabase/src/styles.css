@@ -506,7 +506,7 @@ input:disabled {
   aspect-ratio: 300 / 423;
   opacity: 1;
   transform-origin: 50% 80%;
-  animation: intro-creature-path 18s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+  animation: intro-creature-path 34s cubic-bezier(0.45, 0, 0.2, 1) infinite;
 }
 
 .auth-shell.form-active .auth-creature-path {
@@ -522,7 +522,7 @@ input:disabled {
   background-position: center bottom;
   background-size: contain;
   filter: none;
-  animation: intro-creature-frames 1.15s steps(1) infinite;
+  animation: intro-creature-frames 2.7s steps(1) infinite;
 }
 
 .auth-creature-shadow {
@@ -1091,8 +1091,8 @@ input:disabled {
 
 .logo-mark,
 .brand-mark {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   background: var(--accent);
   display: block;
@@ -1366,6 +1366,38 @@ input:disabled {
   border-bottom: 5px solid var(--accent-contrast);
 }
 
+.logo-mark,
+.brand-mark,
+[data-theme="comic"] .logo-mark,
+[data-theme="comic"] .brand-mark,
+[data-theme="scrapbook"] .logo-mark,
+[data-theme="scrapbook"] .brand-mark,
+[data-theme="pixel"] .logo-mark,
+[data-theme="pixel"] .brand-mark,
+[data-theme="ghibli"] .logo-mark,
+[data-theme="ghibli"] .brand-mark,
+[data-theme="cyberpunk"] .logo-mark,
+[data-theme="cyberpunk"] .brand-mark,
+[data-theme="plant"] .logo-mark,
+[data-theme="plant"] .brand-mark,
+[data-theme="pink"] .logo-mark,
+[data-theme="pink"] .brand-mark,
+[data-theme="brutalist"] .logo-mark,
+[data-theme="brutalist"] .brand-mark {
+  border: 0;
+  border-radius: 999px;
+  background: url("/logo.png") center / contain no-repeat;
+  box-shadow: none;
+  transform: none;
+}
+
+.logo-mark::before,
+.logo-mark::after,
+.brand-mark::before,
+.brand-mark::after {
+  display: none;
+}
+
 .auth-card h1,
 .planner-header h1 {
   font-family: var(--font-heading);
@@ -1459,13 +1491,13 @@ input:disabled {
 }
 
 .planner-header .brand-mark {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
-  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 999px;
   display: inline-block;
   transform: none;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-contrast) 28%, transparent);
+  box-shadow: none;
 }
 
 .planner-header .brand-mark::before {
@@ -1830,6 +1862,55 @@ input:disabled {
   line-height: 1.4;
 }
 
+.item-text {
+  overflow-wrap: anywhere;
+}
+
+.item-edit-block {
+  display: grid;
+  gap: 7px;
+}
+
+.item-edit-block textarea {
+  width: 100%;
+  min-height: 66px;
+  resize: vertical;
+  border: 1px solid var(--chip-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  color: var(--text);
+  padding: 8px 9px;
+  font: inherit;
+  line-height: 1.35;
+  outline: 0;
+}
+
+.item-edit-block textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.item-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.item-edit-actions button {
+  min-height: 26px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .project-chip {
   width: fit-content;
   display: inline-flex;
@@ -1907,6 +1988,21 @@ button.project-chip {
 
 .bp-thought-btn:hover {
   transform: scale(1.06);
+}
+
+.edit-entry-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--muted-text);
+  display: inline-grid;
+  place-items: center;
+}
+
+.edit-entry-btn:hover {
+  color: var(--accent);
 }
 
 .promote-btn {
@@ -2355,10 +2451,40 @@ button.project-chip {
   gap: 10px;
 }
 
+.daily-goal-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .daily-goal-row label,
 .daily-goal-count {
   color: var(--muted-text);
   font-size: 12px;
+}
+
+.daily-goal-info-btn {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.daily-goal-info-btn svg {
+  display: block;
+}
+
+.daily-goal-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .daily-goal-row input {
@@ -2369,6 +2495,28 @@ button.project-chip {
   border-radius: 8px;
   padding: 6px 8px;
   text-align: center;
+}
+
+.daily-goal-row input:disabled {
+  opacity: 0.72;
+}
+
+.daily-goal-save {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.daily-goal-save:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .daily-goal-progress {
@@ -2389,6 +2537,90 @@ button.project-chip {
 
 .daily-goal-count {
   margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.daily-goal-count-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.daily-goal-medal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  font-size: 15px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.daily-goal-medal.bronze {
+  filter: drop-shadow(0 1px 0 rgba(114, 69, 29, 0.16));
+}
+
+.daily-goal-medal.silver {
+  filter: drop-shadow(0 1px 0 rgba(79, 89, 100, 0.14));
+}
+
+.daily-goal-medal.gold {
+  filter: drop-shadow(0 1px 0 rgba(113, 81, 11, 0.18));
+}
+
+.daily-goal-medal.platinum {
+  filter: drop-shadow(0 1px 0 rgba(46, 103, 98, 0.14));
+}
+
+.daily-goal-medal.diamond {
+  filter: drop-shadow(0 1px 0 rgba(44, 75, 163, 0.14));
+}
+
+.daily-goal-lock-note {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.daily-goal-info {
+  position: relative;
+  border: 1px solid var(--chip-border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  padding: 9px 34px 9px 10px;
+  box-shadow: 0 12px 22px -20px rgba(31, 43, 34, 0.72);
+}
+
+.daily-goal-info p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.daily-goal-info strong {
+  font-weight: 700;
+}
+
+.daily-goal-info button {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
 }
 
 .daily-goal-celebration {
@@ -2401,6 +2633,31 @@ button.project-chip {
   gap: 8px;
   font-size: 13px;
   font-weight: 700;
+}
+
+.daily-goal-celebration.bronze {
+  background: #a56632;
+  color: #fff7ef;
+}
+
+.daily-goal-celebration.silver {
+  background: #74808b;
+  color: #ffffff;
+}
+
+.daily-goal-celebration.gold {
+  background: #bf8f16;
+  color: #fff8d8;
+}
+
+.daily-goal-celebration.platinum {
+  background: #4e918c;
+  color: #f1fffd;
+}
+
+.daily-goal-celebration.diamond {
+  background: #496bda;
+  color: #f4f7ff;
 }
 
 .daily-goal-celebration span {
@@ -2633,6 +2890,9 @@ button.project-chip {
 .bp-icon-btn:focus-visible,
 .bp-input:focus-visible,
 .daily-goal-row input:focus-visible,
+.daily-goal-info-btn:focus-visible,
+.daily-goal-save:focus-visible,
+.daily-goal-info button:focus-visible,
 .daily-goal-celebration button:focus-visible,
 .archive-toggle:focus-visible,
 .app-info-btn:focus-visible,
@@ -3157,7 +3417,7 @@ button.project-chip {
     top: 48vh;
     width: clamp(105px, 25vw, 150px);
     animation-name: intro-creature-path-mobile;
-    animation-duration: 13s;
+    animation-duration: 22s;
   }
 
   .auth-card {
@@ -3826,12 +4086,25 @@ button.project-chip {
 
 @media (max-width: 640px) {
   [data-theme="pixel"] .planner-header h1 {
-    font-size: 20px;
+    font-size: 16px;
   }
 
-  [data-theme="brutalist"] .planner-header h1,
+  [data-theme="brutalist"] .planner-header h1 {
+    font-size: 24px;
+  }
+
   [data-theme="ghibli"] .planner-header h1 {
     font-size: 28px;
+  }
+}
+
+@media (max-width: 380px) {
+  [data-theme="pixel"] .planner-header h1 {
+    font-size: 14px;
+  }
+
+  [data-theme="brutalist"] .planner-header h1 {
+    font-size: 21px;
   }
 }
 
@@ -4145,6 +4418,45 @@ button.project-chip {
   .panel-copy,
   .log-title-row {
     margin-bottom: 9px;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-theme="pixel"] .header-copy,
+  [data-theme="pixel"] .panel-white,
+  [data-theme="pixel"] .log-panel,
+  [data-theme="pixel"] .account-dropdown,
+  [data-theme="cyberpunk"] .header-copy,
+  [data-theme="cyberpunk"] .panel-white,
+  [data-theme="cyberpunk"] .log-panel,
+  [data-theme="cyberpunk"] .account-dropdown {
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    color: var(--text);
+  }
+
+  [data-theme="pixel"] .panel-aside,
+  [data-theme="cyberpunk"] .panel-aside {
+    background: color-mix(in srgb, var(--surface-soft) 86%, transparent);
+    color: var(--text);
+  }
+
+  [data-theme="pixel"] .focus-panel,
+  [data-theme="cyberpunk"] .focus-panel {
+    background: color-mix(in srgb, var(--focus-bg) 94%, transparent);
+    color: var(--focus-text);
+  }
+
+  [data-theme="pixel"] .planner-header p,
+  [data-theme="pixel"] .panel-copy p,
+  [data-theme="pixel"] .muted,
+  [data-theme="pixel"] .daily-goal-count,
+  [data-theme="pixel"] .log-item small,
+  [data-theme="cyberpunk"] .planner-header p,
+  [data-theme="cyberpunk"] .panel-copy p,
+  [data-theme="cyberpunk"] .muted,
+  [data-theme="cyberpunk"] .daily-goal-count,
+  [data-theme="cyberpunk"] .log-item small {
+    color: color-mix(in srgb, var(--text) 74%, var(--muted-text));
   }
 }
 

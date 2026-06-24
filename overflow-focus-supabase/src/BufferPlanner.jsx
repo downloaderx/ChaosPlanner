@@ -19,6 +19,7 @@ import {
   Music2,
   Info,
   Hash,
+  Pencil,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -31,6 +32,7 @@ const POMODORO_FOCUS_SECONDS = 25 * 60;
 const POMODORO_BREAK_SECONDS = 5 * 60;
 const POMODORO_AUDIO_SRC = "/audio/pomodoro.mp3";
 const DAILY_GOAL_DEFAULT = 3;
+const DAILY_GOAL_MAX = 20;
 const POMODORO_STORAGE_VERSION = 1;
 const GUEST_ITEMS_STORAGE_KEY = "the-one-thing-guest-items";
 const GUEST_SYNC_PROMPT_SNOOZE_KEY = "the-one-thing-guest-sync-prompt-snoozed-at";
@@ -166,6 +168,25 @@ function getPomodoroDuration(mode) {
   return mode === "focus" ? POMODORO_FOCUS_SECONDS : POMODORO_BREAK_SECONDS;
 }
 
+function getDailyGoalRank(clearedCount, goal) {
+  const safeGoal = Math.max(1, goal);
+  const ratio = clearedCount / safeGoal;
+
+  if (ratio >= 3) return { label: "Diamond", className: "diamond", icon: "💎" };
+  if (ratio >= 2) return { label: "Platinum", className: "platinum", icon: "🏅" };
+  if (ratio >= 1) return { label: "Gold", className: "gold", icon: "🥇" };
+  if (ratio >= 0.5) return { label: "Silver", className: "silver", icon: "🥈" };
+  if (ratio >= 1 / 3) return { label: "Bronze", className: "bronze", icon: "🥉" };
+  return null;
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function getInitialPomodoroState(userId) {
   const fallback = {
     mode: "focus",
@@ -209,6 +230,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [log, setLog] = useState([]);
   const [draft, setDraft] = useState("");
   const [draftProject, setDraftProject] = useState("");
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingItemValue, setEditingItemValue] = useState("");
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editingProjectValue, setEditingProjectValue] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -227,12 +250,18 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [openProjectStat, setOpenProjectStat] = useState(null);
   const [appInfoOpen, setAppInfoOpen] = useState(false);
+  const [goalInfoOpen, setGoalInfoOpen] = useState(false);
   const [guestSyncPromptVisible, setGuestSyncPromptVisible] = useState(false);
   const [guestSyncPromptHandled, setGuestSyncPromptHandled] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(() => {
     if (typeof window === "undefined") return DAILY_GOAL_DEFAULT;
     const stored = Number(localStorage.getItem(`daily-goal-${user.id}`));
     return Number.isFinite(stored) && stored > 0 ? stored : DAILY_GOAL_DEFAULT;
+  });
+  const [dailyGoalDraft, setDailyGoalDraft] = useState(() => String(dailyGoal));
+  const [dailyGoalChangedOn, setDailyGoalChangedOn] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(`daily-goal-changed-on-${user.id}`) || "";
   });
   const [goalCelebrationDismissed, setGoalCelebrationDismissed] = useState(false);
   const inputRef = useRef(null);
@@ -247,6 +276,14 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const dailyGoalProgress = Math.min(clearedToday.length, dailyGoal);
   const dailyGoalComplete = clearedToday.length >= dailyGoal;
   const dailyGoalPercent = Math.round((dailyGoalProgress / dailyGoal) * 100);
+  const dailyGoalRank = getDailyGoalRank(clearedToday.length, dailyGoal);
+  const dailyGoalLockedToday = dailyGoalChangedOn === getLocalDateKey();
+  const dailyGoalDraftNumber = dailyGoalDraft.trim() ? Number(dailyGoalDraft) : Number.NaN;
+  const dailyGoalDraftValue = Number.isFinite(dailyGoalDraftNumber)
+    ? Math.max(1, Math.min(DAILY_GOAL_MAX, Math.round(dailyGoalDraftNumber)))
+    : dailyGoal;
+  const dailyGoalDraftDirty = dailyGoalDraftValue !== dailyGoal;
+  const dailyGoalDraftCanSave = !dailyGoalLockedToday && dailyGoalDraftDirty;
   const breakUnlocked = pomodoroMode === "break";
   const allVisibleItems = [...thoughts, ...setAside, ...(focus ? [focus] : []), ...log];
   const projectOptions = Array.from(new Set(allVisibleItems.map((item) => item.projectTag).filter(Boolean))).sort((a, b) =>
@@ -526,6 +563,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }, [dailyGoal, user.id]);
 
   useEffect(() => {
+    setDailyGoalDraft(String(dailyGoal));
+  }, [dailyGoal]);
+
+  useEffect(() => {
     if (!dailyGoalComplete) setGoalCelebrationDismissed(false);
   }, [dailyGoalComplete]);
 
@@ -539,10 +580,46 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     return () => window.clearTimeout(timerId);
   }, [accountMessage]);
 
-  function updateDailyGoal(event) {
-    const nextGoal = Number(event.target.value);
-    if (!Number.isFinite(nextGoal)) return;
-    setDailyGoal(Math.max(1, Math.min(20, nextGoal)));
+  function updateDailyGoalDraft(event) {
+    setDailyGoalDraft(event.target.value);
+  }
+
+  function commitDailyGoal() {
+    if (dailyGoalLockedToday) {
+      setDailyGoalDraft(String(dailyGoal));
+      return;
+    }
+
+    const nextGoal = dailyGoalDraft.trim() ? Number(dailyGoalDraft) : Number.NaN;
+    if (!Number.isFinite(nextGoal)) {
+      setDailyGoalDraft(String(dailyGoal));
+      return;
+    }
+
+    const normalizedGoal = Math.max(1, Math.min(DAILY_GOAL_MAX, Math.round(nextGoal)));
+    setDailyGoalDraft(String(normalizedGoal));
+    if (normalizedGoal === dailyGoal) return;
+
+    const changedOn = getLocalDateKey();
+    setDailyGoal(normalizedGoal);
+    setDailyGoalChangedOn(changedOn);
+
+    try {
+      localStorage.setItem(`daily-goal-changed-on-${user.id}`, changedOn);
+    } catch (err) {
+      // localStorage unavailable, daily edit lock just won't persist for this session
+    }
+  }
+
+  function handleDailyGoalKeyDown(event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitDailyGoal();
+    }
+
+    if (event.key === "Escape") {
+      setDailyGoalDraft(String(dailyGoal));
+    }
   }
 
   function setPomodoroPreset(mode) {
@@ -674,6 +751,43 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     });
   }
 
+  function startItemEdit(item) {
+    setEditingItemId(item.id);
+    setEditingItemValue(item.text || "");
+  }
+
+  function cancelItemEdit() {
+    setEditingItemId(null);
+    setEditingItemValue("");
+  }
+
+  function saveItemEdit(item) {
+    const nextText = editingItemValue.trim();
+    if (!nextText) return;
+
+    runMutation(async () => {
+      if (isGuest) {
+        const items = readGuestItems().map((localItem) =>
+          localItem.id === item.id ? { ...localItem, text: nextText } : localItem
+        );
+        writeGuestItems(items);
+        cancelItemEdit();
+        await loadItems();
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from("items")
+        .update({ text: nextText })
+        .eq("id", item.id)
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+      cancelItemEdit();
+      await loadItems();
+    });
+  }
+
   function startProjectEdit(item) {
     if (!projectTagAvailable) return;
     setEditingProjectId(item.id);
@@ -762,6 +876,58 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         title="Add project tag"
       >
         <Hash size={11} aria-hidden="true" /> tag
+      </button>
+    );
+  }
+
+  function renderEditableItemCopy(item) {
+    if (editingItemId === item.id) {
+      return (
+        <div className="item-edit-block">
+          <textarea
+            value={editingItemValue}
+            onChange={(event) => setEditingItemValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                saveItemEdit(item);
+              }
+              if (event.key === "Escape") cancelItemEdit();
+            }}
+            autoFocus
+            disabled={busy}
+            aria-label="Edit task text"
+          />
+          <div className="item-edit-actions">
+            <button type="button" onClick={() => saveItemEdit(item)} disabled={busy || !editingItemValue.trim()}>
+              <Check size={12} /> Save
+            </button>
+            <button type="button" onClick={cancelItemEdit} disabled={busy}>
+              <X size={12} /> Cancel
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <span className="item-text">{item.text}</span>
+    );
+  }
+
+  function renderItemEditButton(item) {
+    if (editingItemId === item.id) return null;
+
+    return (
+      <button
+        type="button"
+        className="bp-thought-btn edit-entry-btn"
+        onClick={() => startItemEdit(item)}
+        disabled={busy}
+        title="Edit entry"
+        aria-label={`Edit ${item.text}`}
+      >
+        <Pencil size={13} />
       </button>
     );
   }
@@ -1215,9 +1381,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
               thoughts.map((item) => (
                 <div key={item.id} className="bp-card sticky-note" style={{ transform: `rotate(${item.rot}deg)` }}>
                   <div className="item-copy">
-                    {item.text}
+                    {renderEditableItemCopy(item)}
                     {renderProjectTagControl(item)}
                   </div>
+                  {renderItemEditButton(item)}
                   <button
                     onClick={() => promote(item)}
                     className="bp-thought-btn promote-btn"
@@ -1264,12 +1431,13 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
               setAside.map((item) => (
                 <div key={item.id} className="bp-aside-row">
                   <div className="item-copy">
-                    {item.text}
+                    {renderEditableItemCopy(item)}
                     {renderProjectTagControl(item)}
                   </div>
+                  {renderItemEditButton(item)}
                   <button
                     onClick={() => bringBack(item)}
-                    className="small-outline-btn soft"
+                    className="small-outline-btn soft bp-thought-btn"
                     title="Bring back to live thoughts"
                     aria-label={`Bring ${item.text} back to live thoughts`}
                     disabled={busy}
@@ -1423,30 +1591,82 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             </div>
             <div className="daily-goal">
               <div className="daily-goal-row">
-                <label htmlFor="daily-goal-input">Daily goal</label>
-                <input
-                  id="daily-goal-input"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={dailyGoal}
-                  onChange={updateDailyGoal}
-                  aria-label="Daily cleared goal"
-                />
+                <div className="daily-goal-label">
+                  <label htmlFor="daily-goal-input">Daily goal</label>
+                  <button
+                    type="button"
+                    className="daily-goal-info-btn"
+                    onClick={() => setGoalInfoOpen((open) => !open)}
+                    aria-expanded={goalInfoOpen}
+                    aria-label="Show daily goal medal guide"
+                  >
+                    <Info size={12} />
+                  </button>
+                </div>
+                <div className="daily-goal-control">
+                  <input
+                    id="daily-goal-input"
+                    type="number"
+                    min="1"
+                    max={DAILY_GOAL_MAX}
+                    value={dailyGoalDraft}
+                    onChange={updateDailyGoalDraft}
+                    onKeyDown={handleDailyGoalKeyDown}
+                    disabled={dailyGoalLockedToday}
+                    aria-label="Daily cleared goal"
+                  />
+                  <button
+                    type="button"
+                    className="daily-goal-save"
+                    onClick={commitDailyGoal}
+                    disabled={!dailyGoalDraftCanSave}
+                    aria-label="Save daily goal"
+                    title={dailyGoalLockedToday ? "Daily goal can be changed again tomorrow" : "Save daily goal"}
+                  >
+                    <Check size={12} />
+                  </button>
+                </div>
               </div>
 
-              <div className="daily-goal-progress" aria-label={`${dailyGoalProgress} of ${dailyGoal} cleared today`}>
+              <div className="daily-goal-progress" aria-label={`${clearedToday.length} of ${dailyGoal} cleared today`}>
                 <span style={{ width: `${dailyGoalPercent}%` }} />
               </div>
 
               <p className="daily-goal-count">
-                {dailyGoalProgress}/{dailyGoal} cleared
+                <span className="daily-goal-count-text">
+                  {clearedToday.length}/{dailyGoal} cleared today
+                  {dailyGoalRank && (
+                    <strong
+                      className={`daily-goal-medal ${dailyGoalRank.className}`}
+                      aria-label={`${dailyGoalRank.label} rank`}
+                      title={dailyGoalRank.label}
+                    >
+                      {dailyGoalRank.icon}
+                    </strong>
+                  )}
+                </span>
               </p>
 
+              {dailyGoalLockedToday && (
+                <p className="daily-goal-lock-note">Goal locked for today. Tomorrow gets one new change.</p>
+              )}
+
+              {goalInfoOpen && (
+                <div className="daily-goal-info" role="note">
+                  <p>
+                    <strong>🥉</strong> 1/3 goal · <strong>🥈</strong> half goal · <strong>🥇</strong> goal done ·{" "}
+                    <strong>🏅</strong> 2x goal · <strong>💎</strong> 3x goal
+                  </p>
+                  <button type="button" onClick={() => setGoalInfoOpen(false)} aria-label="Close daily goal medal guide">
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+
               {dailyGoalComplete && !goalCelebrationDismissed && (
-                <div className="daily-goal-celebration" role="status">
+                <div className={`daily-goal-celebration ${dailyGoalRank?.className || ""}`.trim()} role="status">
                   <Trophy size={16} />
-                  <span>Daily goal complete</span>
+                  <span>{dailyGoalRank?.label || "Daily"} goal reached</span>
                   <button
                     type="button"
                     onClick={() => setGoalCelebrationDismissed(true)}
