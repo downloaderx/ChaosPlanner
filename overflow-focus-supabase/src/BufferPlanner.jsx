@@ -998,7 +998,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       }
 
       const payload = {
-        user_id: user.id,
+       
         column: "thoughts",
         text,
         started_at: new Date().toISOString(),
