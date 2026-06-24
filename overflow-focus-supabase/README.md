@@ -40,8 +40,10 @@ The app expects this table:
 | user_id | uuid |
 | column | text |
 | text | text |
+| project_tag | text, nullable |
 | started_at | timestamptz, default `now()` |
 | finished_at | timestamptz, nullable |
+| deleted_at | timestamptz, nullable |
 
 Allowed `column` values used by the app:
 
@@ -51,6 +53,9 @@ Allowed `column` values used by the app:
 - `log`
 
 The SQL file is in `database/schema-and-policies.sql` if you need to recreate the table.
+
+Daily goal settings sync through `public.user_settings` for signed-in users. If you already have an existing Supabase
+project, run `database/add-user-settings.sql` once in the Supabase SQL editor.
 
 ## 4. Email confirmation note
 
