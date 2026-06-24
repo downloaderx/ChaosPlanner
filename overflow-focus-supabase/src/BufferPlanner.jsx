@@ -9,6 +9,7 @@ import {
   LogOut,
   KeyRound,
   Trash2,
+  ArchiveRestore,
   UserCircle,
   ChevronDown,
   Play,
@@ -20,6 +21,7 @@ import {
   Info,
   Hash,
   Pencil,
+  FolderOpen,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -31,6 +33,7 @@ const PROJECT_TASK_PREVIEW_LIMIT = 5;
 const POMODORO_FOCUS_SECONDS = 25 * 60;
 const POMODORO_BREAK_SECONDS = 5 * 60;
 const POMODORO_AUDIO_SRC = "/audio/pomodoro.mp3";
+const POMODORO_VOLUME_DEFAULT = 0.55;
 const DAILY_GOAL_DEFAULT = 3;
 const DAILY_GOAL_MAX = 20;
 const POMODORO_STORAGE_VERSION = 1;
@@ -57,11 +60,19 @@ function normalizeItem(row) {
     projectTag: row.project_tag || "",
     startedAt: row.started_at,
     finishedAt: row.finished_at,
+    deletedAt: row.deleted_at || null,
     rot: rotationFromId(row.id),
   };
 }
 
-function createLocalItem({ column, text, projectTag = "", startedAt = new Date().toISOString(), finishedAt = null }) {
+function createLocalItem({
+  column,
+  text,
+  projectTag = "",
+  startedAt = new Date().toISOString(),
+  finishedAt = null,
+  deletedAt = null,
+}) {
   return {
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     user_id: "guest",
@@ -70,6 +81,7 @@ function createLocalItem({ column, text, projectTag = "", startedAt = new Date()
     project_tag: projectTag || null,
     started_at: startedAt,
     finished_at: finishedAt,
+    deleted_at: deletedAt,
   };
 }
 
@@ -138,6 +150,19 @@ function isMissingProjectTagColumn(error) {
   );
 }
 
+function isMissingDeletedAtColumn(error) {
+  return (
+    error?.code === "42703" ||
+    error?.message?.toLowerCase().includes("deleted_at") ||
+    error?.details?.toLowerCase().includes("deleted_at")
+  );
+}
+
+function isMissingUserSettings(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return error?.code === "42P01" || message.includes("user_settings");
+}
+
 function sortNewestFirst(a, b, field = "startedAt") {
   return new Date(b[field] || 0).getTime() - new Date(a[field] || 0).getTime();
 }
@@ -192,6 +217,7 @@ function getInitialPomodoroState(userId) {
     mode: "focus",
     seconds: POMODORO_FOCUS_SECONDS,
     running: false,
+    resumedAfterReload: false,
   };
 
   if (typeof window === "undefined") return fallback;
@@ -205,7 +231,7 @@ function getInitialPomodoroState(userId) {
     const seconds = Number.isFinite(savedSeconds) ? Math.max(0, Math.min(getPomodoroDuration(mode), savedSeconds)) : fallback.seconds;
 
     if (!stored.running) {
-      return { mode, seconds: seconds || getPomodoroDuration(mode), running: false };
+      return { mode, seconds: seconds || getPomodoroDuration(mode), running: false, resumedAfterReload: false };
     }
 
     const savedAt = Number(stored.savedAt);
@@ -213,11 +239,11 @@ function getInitialPomodoroState(userId) {
     const remaining = Math.max(0, seconds - Math.max(0, elapsed));
 
     if (remaining > 0) {
-      return { mode, seconds: remaining, running: true };
+      return { mode, seconds: remaining, running: true, resumedAfterReload: true };
     }
 
     const nextMode = getNextPomodoroMode(mode);
-    return { mode: nextMode, seconds: getPomodoroDuration(nextMode), running: false };
+    return { mode: nextMode, seconds: getPomodoroDuration(nextMode), running: false, resumedAfterReload: false };
   } catch (err) {
     return fallback;
   }
@@ -228,6 +254,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [setAside, setSetAside] = useState([]);
   const [focus, setFocus] = useState(null);
   const [log, setLog] = useState([]);
+  const [trash, setTrash] = useState([]);
   const [draft, setDraft] = useState("");
   const [draftProject, setDraftProject] = useState("");
   const [editingItemId, setEditingItemId] = useState(null);
@@ -237,9 +264,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [projectTagAvailable, setProjectTagAvailable] = useState(true);
+  const [trashAvailable, setTrashAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
   const [accountMessage, setAccountMessage] = useState("");
   const [accountError, setAccountError] = useState("");
+  const [pendingUndo, setPendingUndo] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [initialPomodoro] = useState(() => getInitialPomodoroState(user.id));
   const [pomodoroMode, setPomodoroMode] = useState(initialPomodoro.mode);
@@ -247,28 +276,41 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [pomodoroRunning, setPomodoroRunning] = useState(initialPomodoro.running);
   const [pomodoroHelpOpen, setPomodoroHelpOpen] = useState(false);
   const [pomodoroMusicEnabled, setPomodoroMusicEnabled] = useState(true);
+  const [pomodoroReloadNotice, setPomodoroReloadNotice] = useState(initialPomodoro.resumedAfterReload);
+  const [pomodoroVolume, setPomodoroVolume] = useState(() => {
+    if (typeof window === "undefined") return POMODORO_VOLUME_DEFAULT;
+    const stored = Number(localStorage.getItem(`pomodoro-volume-${user.id}`));
+    return Number.isFinite(stored) ? Math.max(0, Math.min(1, stored)) : POMODORO_VOLUME_DEFAULT;
+  });
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [openProjectStat, setOpenProjectStat] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [appInfoOpen, setAppInfoOpen] = useState(false);
   const [goalInfoOpen, setGoalInfoOpen] = useState(false);
+  const [projectInfoOpen, setProjectInfoOpen] = useState(false);
   const [guestSyncPromptVisible, setGuestSyncPromptVisible] = useState(false);
   const [guestSyncPromptHandled, setGuestSyncPromptHandled] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(() => {
     if (typeof window === "undefined") return DAILY_GOAL_DEFAULT;
+    if (!user.isGuest) return DAILY_GOAL_DEFAULT;
     const stored = Number(localStorage.getItem(`daily-goal-${user.id}`));
     return Number.isFinite(stored) && stored > 0 ? stored : DAILY_GOAL_DEFAULT;
   });
   const [dailyGoalDraft, setDailyGoalDraft] = useState(() => String(dailyGoal));
   const [dailyGoalChangedOn, setDailyGoalChangedOn] = useState(() => {
-    if (typeof window === "undefined") return "";
+    if (!user.isGuest || typeof window === "undefined") return "";
     return localStorage.getItem(`daily-goal-changed-on-${user.id}`) || "";
   });
+  const [settingsAvailable, setSettingsAvailable] = useState(true);
   const [goalCelebrationDismissed, setGoalCelebrationDismissed] = useState(false);
   const inputRef = useRef(null);
+  const undoTimerRef = useRef(null);
   const pomodoroAudioRef = useRef(null);
   const audioStartTokenRef = useRef(0);
   const pomodoroRunningRef = useRef(pomodoroRunning);
   const pomodoroMusicEnabledRef = useRef(pomodoroMusicEnabled);
+  const pomodoroVolumeRef = useRef(pomodoroVolume);
   const isGuest = Boolean(user.isGuest);
   const accountNotice = accountError || accountMessage;
   const clearedToday = log.filter(isFinishedToday);
@@ -300,6 +342,19 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     .slice(0, 5);
   const totalProjectTaggedItems = projectStats.reduce((sum, [, count]) => sum + count, 0);
   const maxProjectCount = projectStats[0]?.[1] || 0;
+  const selectedProjectItems = selectedProject
+    ? {
+        live: thoughts.filter((item) => item.projectTag === selectedProject),
+        focus: focus?.projectTag === selectedProject ? [focus] : [],
+        setAside: setAside.filter((item) => item.projectTag === selectedProject),
+        cleared: log.filter((item) => item.projectTag === selectedProject),
+      }
+    : null;
+  const selectedProjectTotal =
+    (selectedProjectItems?.live.length || 0) +
+    (selectedProjectItems?.focus.length || 0) +
+    (selectedProjectItems?.setAside.length || 0) +
+    (selectedProjectItems?.cleared.length || 0);
 
   const runMutation = useCallback(
     async (action) => {
@@ -315,6 +370,87 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     },
     []
   );
+
+  const loadUserSettings = useCallback(async () => {
+    if (isGuest) return;
+
+    const { data, error: settingsError } = await supabase
+      .from("user_settings")
+      .select("daily_goal,daily_goal_changed_on")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (settingsError) {
+      if (isMissingUserSettings(settingsError)) {
+        setSettingsAvailable(false);
+        return;
+      }
+      throw settingsError;
+    }
+
+    setSettingsAvailable(true);
+
+    if (data) {
+      const nextGoal = Number(data.daily_goal);
+      setDailyGoal(Number.isFinite(nextGoal) ? Math.max(1, Math.min(DAILY_GOAL_MAX, nextGoal)) : DAILY_GOAL_DEFAULT);
+      setDailyGoalChangedOn(data.daily_goal_changed_on || "");
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("user_settings").insert({
+      user_id: user.id,
+      daily_goal: DAILY_GOAL_DEFAULT,
+      daily_goal_changed_on: null,
+    });
+
+    if (insertError) {
+      if (isMissingUserSettings(insertError)) {
+        setSettingsAvailable(false);
+        return;
+      }
+      throw insertError;
+    }
+
+    setDailyGoal(DAILY_GOAL_DEFAULT);
+    setDailyGoalChangedOn("");
+  }, [isGuest, user.id]);
+
+  function showUndoToast(message, onUndo) {
+    if (undoTimerRef.current) {
+      window.clearTimeout(undoTimerRef.current);
+    }
+
+    setPendingUndo({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      message,
+      onUndo,
+    });
+
+    undoTimerRef.current = window.setTimeout(() => {
+      setPendingUndo(null);
+      undoTimerRef.current = null;
+    }, 7000);
+  }
+
+  function dismissUndoToast() {
+    if (undoTimerRef.current) {
+      window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    setPendingUndo(null);
+  }
+
+  function undoLastAction() {
+    if (!pendingUndo) return;
+
+    const undoAction = pendingUndo.onUndo;
+    dismissUndoToast();
+
+    runMutation(async () => {
+      await undoAction();
+      await loadItems();
+    });
+  }
 
   const migrateGuestItems = useCallback(async () => {
     if (isGuest || typeof window === "undefined") return;
@@ -350,10 +486,13 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       if (isGuest) {
         setProjectTagAvailable(true);
+        setTrashAvailable(true);
 
         let localRows = readGuestItems();
         const normalized = localRows.map(normalizeItem);
-        const nextThoughts = normalized.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
+        const activeItems = normalized.filter((item) => !item.deletedAt);
+        const nextTrash = normalized.filter((item) => item.deletedAt).sort((a, b) => sortNewestFirst(a, b, "deletedAt"));
+        const nextThoughts = activeItems.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
 
         if (enforceCap && nextThoughts.length > ACTIVE_CAP) {
           const overflowIds = new Set(nextThoughts.slice(ACTIVE_CAP).map((item) => item.id));
@@ -366,9 +505,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           return loadItems({ enforceCap: false });
         }
 
-        const nextSetAside = normalized.filter((item) => item.column === "setaside").sort(sortNewestFirst);
-        const focusItems = normalized.filter((item) => item.column === "focus").sort(sortNewestFirst);
-        const nextLog = normalized
+        const nextSetAside = activeItems.filter((item) => item.column === "setaside").sort(sortNewestFirst);
+        const focusItems = activeItems.filter((item) => item.column === "focus").sort(sortNewestFirst);
+        const nextLog = activeItems
           .filter((item) => item.column === "log")
           .sort((a, b) => sortNewestFirst(a, b, "finishedAt"));
 
@@ -376,15 +515,31 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         setSetAside(nextSetAside);
         setFocus(focusItems[0] || null);
         setLog(nextLog);
+        setTrash(nextTrash);
         setLoaded(true);
         return;
       }
 
       let { data, error: loadError } = await supabase
         .from("items")
-        .select("id,user_id,column,text,project_tag,started_at,finished_at")
+        .select("id,user_id,column,text,project_tag,started_at,finished_at,deleted_at")
         .eq("user_id", user.id)
         .order("started_at", { ascending: false });
+
+      if (loadError && isMissingDeletedAtColumn(loadError)) {
+        setTrashAvailable(false);
+
+        const fallback = await supabase
+          .from("items")
+          .select("id,user_id,column,text,project_tag,started_at,finished_at")
+          .eq("user_id", user.id)
+          .order("started_at", { ascending: false });
+
+        data = fallback.data;
+        loadError = fallback.error;
+      } else if (!loadError) {
+        setTrashAvailable(true);
+      }
 
       if (loadError && isMissingProjectTagColumn(loadError)) {
         setProjectTagAvailable(false);
@@ -404,7 +559,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       if (loadError) throw loadError;
 
       const normalized = (data || []).map(normalizeItem);
-      const nextThoughts = normalized.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
+      const activeItems = normalized.filter((item) => !item.deletedAt);
+      const nextTrash = normalized.filter((item) => item.deletedAt).sort((a, b) => sortNewestFirst(a, b, "deletedAt"));
+      const nextThoughts = activeItems.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
 
       if (enforceCap && nextThoughts.length > ACTIVE_CAP) {
         const overflow = nextThoughts.slice(ACTIVE_CAP);
@@ -420,9 +577,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         return loadItems({ enforceCap: false });
       }
 
-      const nextSetAside = normalized.filter((item) => item.column === "setaside").sort(sortNewestFirst);
-      const focusItems = normalized.filter((item) => item.column === "focus").sort(sortNewestFirst);
-      const nextLog = normalized
+      const nextSetAside = activeItems.filter((item) => item.column === "setaside").sort(sortNewestFirst);
+      const focusItems = activeItems.filter((item) => item.column === "focus").sort(sortNewestFirst);
+      const nextLog = activeItems
         .filter((item) => item.column === "log")
         .sort((a, b) => sortNewestFirst(a, b, "finishedAt"));
 
@@ -430,6 +587,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       setSetAside(nextSetAside);
       setFocus(focusItems[0] || null);
       setLog(nextLog);
+      setTrash(nextTrash);
       setLoaded(true);
     },
     [isGuest, user.id]
@@ -455,6 +613,27 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       cancelled = true;
     };
   }, [loadItems]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettings() {
+      try {
+        await loadUserSettings();
+      } catch (err) {
+        if (!cancelled) {
+          setSettingsAvailable(false);
+          setError(err.message || "Couldn't load your synced settings.");
+        }
+      }
+    }
+
+    loadSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadUserSettings]);
 
   useEffect(() => {
     if (guestSyncPromptHandled || guestSyncPromptVisible || guestSyncPromptSnoozed()) return undefined;
@@ -491,6 +670,20 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }, [pomodoroMusicEnabled]);
 
   useEffect(() => {
+    pomodoroVolumeRef.current = pomodoroVolume;
+
+    if (pomodoroAudioRef.current) {
+      pomodoroAudioRef.current.volume = pomodoroVolume;
+    }
+
+    try {
+      localStorage.setItem(`pomodoro-volume-${user.id}`, String(pomodoroVolume));
+    } catch (err) {
+      // localStorage unavailable, volume just won't persist for this session
+    }
+  }, [pomodoroVolume, user.id]);
+
+  useEffect(() => {
     if (!pomodoroRunning) return undefined;
 
     const timerId = window.setInterval(() => {
@@ -504,6 +697,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (!pomodoroRunning || pomodoroSeconds !== 0) return;
 
     setPomodoroRunning(false);
+    playPomodoroChime();
     setPomodoroMode((mode) => {
       const nextMode = getNextPomodoroMode(mode);
       setPomodoroSeconds(getPomodoroDuration(nextMode));
@@ -514,11 +708,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   useEffect(() => {
     if (!loaded) return;
 
-    if (!focus) {
+    if (!focus && pomodoroMode === "focus") {
       setPomodoroRunning(false);
       stopPomodoroMusic();
     }
-  }, [focus, loaded]);
+  }, [focus, loaded, pomodoroMode]);
 
   useEffect(() => {
     if (!pomodoroRunning) return;
@@ -555,12 +749,14 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }, [pomodoroMode, pomodoroRunning, pomodoroSeconds, user.id]);
 
   useEffect(() => {
+    if (!isGuest) return;
+
     try {
       localStorage.setItem(`daily-goal-${user.id}`, String(dailyGoal));
     } catch (err) {
       // localStorage unavailable, goal just won't persist for this session
     }
-  }, [dailyGoal, user.id]);
+  }, [dailyGoal, isGuest, user.id]);
 
   useEffect(() => {
     setDailyGoalDraft(String(dailyGoal));
@@ -580,8 +776,38 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     return () => window.clearTimeout(timerId);
   }, [accountMessage]);
 
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    };
+  }, []);
+
   function updateDailyGoalDraft(event) {
     setDailyGoalDraft(event.target.value);
+  }
+
+  async function saveDailyGoalSettings(nextGoal, changedOn) {
+    if (isGuest) {
+      try {
+        localStorage.setItem(`daily-goal-changed-on-${user.id}`, changedOn);
+      } catch (err) {
+        // localStorage unavailable, daily edit lock just won't persist for this session
+      }
+      return;
+    }
+
+    if (!settingsAvailable) {
+      throw new Error("Run the user_settings SQL once to sync daily goal across devices.");
+    }
+
+    const { error: settingsError } = await supabase.from("user_settings").upsert({
+      user_id: user.id,
+      daily_goal: nextGoal,
+      daily_goal_changed_on: changedOn,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (settingsError) throw settingsError;
   }
 
   function commitDailyGoal() {
@@ -603,12 +829,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     const changedOn = getLocalDateKey();
     setDailyGoal(normalizedGoal);
     setDailyGoalChangedOn(changedOn);
+    setError(null);
 
-    try {
-      localStorage.setItem(`daily-goal-changed-on-${user.id}`, changedOn);
-    } catch (err) {
-      // localStorage unavailable, daily edit lock just won't persist for this session
-    }
+    saveDailyGoalSettings(normalizedGoal, changedOn).catch((err) => {
+      setError(err.message || "Couldn't save your daily goal.");
+    });
   }
 
   function handleDailyGoalKeyDown(event) {
@@ -636,6 +861,42 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setPomodoroSeconds(getPomodoroDuration(pomodoroMode));
   }
 
+  function unlockBreakAfterDone() {
+    setPomodoroRunning(false);
+    stopPomodoroMusic();
+    setPomodoroMode("break");
+    setPomodoroSeconds(POMODORO_BREAK_SECONDS);
+  }
+
+  function playPomodoroChime() {
+    if (typeof window === "undefined") return;
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    try {
+      const context = new AudioContext();
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0, context.currentTime);
+      gain.gain.linearRampToValueAtTime(Math.max(0.03, pomodoroVolumeRef.current * 0.36), context.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.9);
+      gain.connect(context.destination);
+
+      [660, 880].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, context.currentTime + index * 0.14);
+        oscillator.connect(gain);
+        oscillator.start(context.currentTime + index * 0.14);
+        oscillator.stop(context.currentTime + 0.58 + index * 0.14);
+      });
+
+      window.setTimeout(() => context.close(), 1100);
+    } catch (err) {
+      // Browser audio can fail if the page has not received an interaction yet.
+    }
+  }
+
   function stopPomodoroMusic() {
     audioStartTokenRef.current += 1;
 
@@ -657,7 +918,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (!pomodoroAudioRef.current) {
       const audio = new Audio(POMODORO_AUDIO_SRC);
       audio.loop = true;
-      audio.volume = 0.55;
+      audio.volume = pomodoroVolumeRef.current;
       audio.preload = "auto";
       pomodoroAudioRef.current = audio;
     }
@@ -686,6 +947,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }
 
   async function togglePomodoroRunning() {
+    setPomodoroReloadNotice(false);
     const shouldRun = !pomodoroRunningRef.current;
     pomodoroRunningRef.current = shouldRun;
     setPomodoroRunning(shouldRun);
@@ -698,6 +960,13 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }
 
   async function togglePomodoroMusic() {
+    if (pomodoroReloadNotice && pomodoroMusicEnabledRef.current) {
+      setPomodoroReloadNotice(false);
+      if (pomodoroRunningRef.current) await startPomodoroMusic(true);
+      return;
+    }
+
+    setPomodoroReloadNotice(false);
     const shouldEnable = !pomodoroMusicEnabledRef.current;
     pomodoroMusicEnabledRef.current = shouldEnable;
     setPomodoroMusicEnabled(shouldEnable);
@@ -932,16 +1201,79 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     );
   }
 
+  function renderProjectItemList(items, emptyText, dateField = "startedAt") {
+    if (!items.length) return <p className="project-modal-empty">{emptyText}</p>;
+
+    return items.map((item) => (
+      <div key={`${item.id}-${item[dateField] || item.startedAt || item.finishedAt || item.text}`} className="project-modal-task">
+        <span>{item.text}</span>
+        <small>{timeAgo(item[dateField] || item.startedAt)}</small>
+      </div>
+    ));
+  }
+
+  function closeProjectModal() {
+    setSelectedProject(null);
+  }
+
   function removeItem(id) {
     runMutation(async () => {
       if (isGuest) {
-        writeGuestItems(readGuestItems().filter((item) => item.id !== id));
+        const guestItems = readGuestItems();
+        const deletedItem = guestItems.find((item) => item.id === id);
+        writeGuestItems(
+          guestItems.map((item) => (item.id === id ? { ...item, deleted_at: new Date().toISOString() } : item))
+        );
+        if (deletedItem) {
+          showUndoToast("Task moved to trash.", async () => {
+            writeGuestItems(
+              readGuestItems().map((item) => (item.id === deletedItem.id ? { ...item, deleted_at: null } : item))
+            );
+          });
+        }
         await loadItems();
         return;
       }
 
-      const { error: deleteError } = await supabase.from("items").delete().eq("id", id).eq("user_id", user.id);
+      const deletedItem = allVisibleItems.find((item) => item.id === id);
+      if (!trashAvailable) {
+        const { error: deleteError } = await supabase.from("items").delete().eq("id", id).eq("user_id", user.id);
+        if (deleteError) throw deleteError;
+        if (deletedItem) {
+          showUndoToast("Task discarded.", async () => {
+            const { error: restoreError } = await supabase.from("items").insert({
+              id: deletedItem.id,
+              user_id: user.id,
+              column: deletedItem.column,
+              text: deletedItem.text,
+              project_tag: deletedItem.projectTag || null,
+              started_at: deletedItem.startedAt,
+              finished_at: deletedItem.finishedAt || null,
+            });
+            if (restoreError) throw restoreError;
+          });
+        }
+        await loadItems();
+        return;
+      }
+
+      const { error: deleteError } = await supabase
+        .from("items")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("user_id", user.id);
+
       if (deleteError) throw deleteError;
+      if (deletedItem) {
+        showUndoToast("Task moved to trash.", async () => {
+          const { error: undeleteError } = await supabase
+            .from("items")
+            .update({ deleted_at: null })
+            .eq("id", deletedItem.id)
+            .eq("user_id", user.id);
+          if (undeleteError) throw undeleteError;
+        });
+      }
       await loadItems();
     });
   }
@@ -957,6 +1289,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         );
         writeGuestItems(items);
         await loadItems();
+        unlockBreakAfterDone();
         return;
       }
 
@@ -968,6 +1301,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       if (updateError) throw updateError;
       await loadItems();
+      unlockBreakAfterDone();
     });
   }
 
@@ -1090,6 +1424,44 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     });
   }
 
+  function restoreTrashItem(item) {
+    runMutation(async () => {
+      if (isGuest) {
+        writeGuestItems(
+          readGuestItems().map((localItem) => (localItem.id === item.id ? { ...localItem, deleted_at: null } : localItem))
+        );
+        await loadItems();
+        return;
+      }
+
+      const { error: restoreError } = await supabase
+        .from("items")
+        .update({ deleted_at: null })
+        .eq("id", item.id)
+        .eq("user_id", user.id);
+
+      if (restoreError) throw restoreError;
+      await loadItems();
+    });
+  }
+
+  function permanentlyDeleteItem(item) {
+    const confirmed = window.confirm(`Permanently delete "${item.text}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    runMutation(async () => {
+      if (isGuest) {
+        writeGuestItems(readGuestItems().filter((localItem) => localItem.id !== item.id));
+        await loadItems();
+        return;
+      }
+
+      const { error: deleteError } = await supabase.from("items").delete().eq("id", item.id).eq("user_id", user.id);
+      if (deleteError) throw deleteError;
+      await loadItems();
+    });
+  }
+
   function deleteProjectTag(project) {
     const confirmed = window.confirm(
       `Remove #${project} from all tasks? The tasks will stay in your planner, but this project will disappear from the mix.`
@@ -1099,23 +1471,54 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     runMutation(async () => {
       if (isGuest) {
-        const items = readGuestItems().map((localItem) =>
-          localItem.project_tag === project ? { ...localItem, project_tag: null } : localItem
+        const guestItems = readGuestItems();
+        const affectedItems = guestItems.filter((localItem) => localItem.project_tag === project && !localItem.deleted_at);
+        const items = guestItems.map((localItem) =>
+          localItem.project_tag === project && !localItem.deleted_at ? { ...localItem, project_tag: null } : localItem
         );
         writeGuestItems(items);
         setOpenProjectStat((openProject) => (openProject === project ? null : openProject));
+        setSelectedProject((currentProject) => (currentProject === project ? null : currentProject));
+        if (affectedItems.length) {
+          showUndoToast(`#${project} removed from ${affectedItems.length} task${affectedItems.length === 1 ? "" : "s"}.`, async () => {
+            const affectedIds = new Set(affectedItems.map((item) => item.id));
+            writeGuestItems(
+              readGuestItems().map((localItem) =>
+                affectedIds.has(localItem.id) ? { ...localItem, project_tag: project } : localItem
+              )
+            );
+          });
+        }
         await loadItems();
         return;
       }
 
-      const { error: updateError } = await supabase
+      const affectedIds = allVisibleItems.filter((item) => item.projectTag === project).map((item) => item.id);
+      let tagUpdate = supabase
         .from("items")
         .update({ project_tag: null })
         .eq("user_id", user.id)
         .eq("project_tag", project);
 
+      if (trashAvailable) {
+        tagUpdate = tagUpdate.is("deleted_at", null);
+      }
+
+      const { error: updateError } = await tagUpdate;
+
       if (updateError) throw updateError;
       setOpenProjectStat((openProject) => (openProject === project ? null : openProject));
+      setSelectedProject((currentProject) => (currentProject === project ? null : currentProject));
+      if (affectedIds.length) {
+        showUndoToast(`#${project} removed from ${affectedIds.length} task${affectedIds.length === 1 ? "" : "s"}.`, async () => {
+          const { error: restoreError } = await supabase
+            .from("items")
+            .update({ project_tag: project })
+            .eq("user_id", user.id)
+            .in("id", affectedIds);
+          if (restoreError) throw restoreError;
+        });
+      }
       await loadItems();
     });
   }
@@ -1206,9 +1609,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             <div className="header-copy">
               
   <div className="title-row">
+    <span className="brand-mark title-brand-mark" aria-hidden="true" />
     <h1>The One Thing</h1>
     <div className="title-actions">
-      <span className="brand-mark" aria-hidden="true" />
       <button
         type="button"
         className="app-info-btn"
@@ -1240,12 +1643,35 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             {isGuest ? (
               <>
                 <p className="account-dropdown-note">Saved only in this browser.</p>
+                <button
+                  className="account-menu-item"
+                  type="button"
+                  onClick={() => {
+                    setAccountOpen(false);
+                    setTrashOpen(true);
+                  }}
+                  role="menuitem"
+                >
+                  <Trash2 size={14} /> Trash {trash.length > 0 ? `(${trash.length})` : ""}
+                </button>
                 <button className="account-menu-item" type="button" onClick={signOut} role="menuitem">
                   <LogOut size={14} /> Sign in to sync
                 </button>
               </>
             ) : (
               <>
+                <button
+                  className="account-menu-item"
+                  type="button"
+                  onClick={() => {
+                    setAccountOpen(false);
+                    setTrashOpen(true);
+                  }}
+                  role="menuitem"
+                >
+                  <Trash2 size={14} /> Trash {trash.length > 0 ? `(${trash.length})` : ""}
+                </button>
+
                 <button className="account-menu-item" type="button" onClick={sendPasswordReset} role="menuitem">
                   <KeyRound size={14} /> Reset password
                 </button>
@@ -1304,6 +1730,18 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         </div>
       )}
 
+      {pendingUndo && (
+        <div className="undo-toast" role="status" aria-live="polite">
+          <span>{pendingUndo.message}</span>
+          <button type="button" className="undo-toast-action" onClick={undoLastAction} disabled={busy}>
+            Undo
+          </button>
+          <button type="button" className="undo-toast-close" onClick={dismissUndoToast} aria-label="Dismiss undo">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {guestSyncPromptVisible && (
         <div className="guest-sync-prompt" role="status" aria-live="polite">
           <div>
@@ -1325,6 +1763,113 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           <button type="button" className="guest-sync-later" onClick={dismissGuestSyncPrompt} aria-label="Remind me later">
             {isGuest ? "Later" : "Not now"}
           </button>
+        </div>
+      )}
+
+      {selectedProject && selectedProjectItems && (
+        <div className="project-modal-backdrop" role="presentation" onClick={closeProjectModal}>
+          <section
+            className="project-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="project-modal-header">
+              <div>
+                <p className="project-modal-kicker">Focus map</p>
+                <h2 id="project-modal-title">#{selectedProject}</h2>
+              </div>
+              <button type="button" onClick={closeProjectModal} aria-label="Close project overview">
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="project-modal-stats" aria-label="Project task counts">
+              <span>
+                <strong>{selectedProjectItems.cleared.length}</strong>
+                cleared
+              </span>
+              <span>
+                <strong>{selectedProjectItems.live.length + selectedProjectItems.focus.length}</strong>
+                active
+              </span>
+              <span>
+                <strong>{selectedProjectItems.setAside.length}</strong>
+                later
+              </span>
+              <span>
+                <strong>{selectedProjectTotal}</strong>
+                total
+              </span>
+            </div>
+
+            <div className="project-modal-sections">
+              <section>
+                <h3>Now</h3>
+                {renderProjectItemList(
+                  [...selectedProjectItems.focus, ...selectedProjectItems.live],
+                  "Nothing active in this project right now."
+                )}
+              </section>
+              <section>
+                <h3>Later</h3>
+                {renderProjectItemList(selectedProjectItems.setAside, "Nothing waiting here.")}
+              </section>
+              <section>
+                <h3>Cleared</h3>
+                {renderProjectItemList(selectedProjectItems.cleared, "No cleared tasks yet.", "finishedAt")}
+              </section>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {trashOpen && (
+        <div className="project-modal-backdrop" role="presentation" onClick={() => setTrashOpen(false)}>
+          <section
+            className="trash-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trash-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="project-modal-header">
+              <div>
+                <p className="project-modal-kicker">Recover mistakes</p>
+                <h2 id="trash-modal-title">Trash</h2>
+              </div>
+              <button type="button" onClick={() => setTrashOpen(false)} aria-label="Close trash">
+                <X size={15} />
+              </button>
+            </div>
+
+            {!trashAvailable && !isGuest ? (
+              <p className="trash-empty">Run the deleted_at SQL once to enable recoverable trash for this account.</p>
+            ) : trash.length === 0 ? (
+              <p className="trash-empty">Nothing in trash.</p>
+            ) : (
+              <div className="trash-list">
+                {trash.map((item) => (
+                  <div key={`${item.id}-${item.deletedAt}`} className="trash-item">
+                    <div>
+                      <strong>{item.text}</strong>
+                      <span>
+                        {item.projectTag ? `#${item.projectTag} · ` : ""}
+                        deleted {timeAgo(item.deletedAt)}
+                      </span>
+                    </div>
+                    <button type="button" className="trash-restore-btn" onClick={() => restoreTrashItem(item)} disabled={busy}>
+                      <ArchiveRestore size={13} /> Restore
+                    </button>
+                    <button type="button" className="trash-delete-btn" onClick={() => permanentlyDeleteItem(item)} disabled={busy}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
 
@@ -1526,7 +2071,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                       onClick={() => setPomodoroPreset("break")}
                       aria-pressed={pomodoroMode === "break"}
                       disabled={!breakUnlocked}
-                      title={breakUnlocked ? "Take a 5 minute break" : "Finish a 25 minute focus session first"}
+                      title={breakUnlocked ? "Take a 5 minute break" : "Finish the 25 minute timer or mark The One Thing done first"}
                     >
                       5
                     </button>
@@ -1548,7 +2093,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
                   {pomodoroHelpOpen && (
                     <div className="pomodoro-help" role="note">
-                      <span>Work on one thing for 25 minutes, then take a 5 minute break. Repeat when you're ready.</span>
+                      <span>
+                        Work on one thing for 25 minutes. The 5 minute break unlocks when the timer reaches 0 or when
+                        you mark The One Thing done.
+                      </span>
                       <button
                         type="button"
                         className="pomodoro-help-close"
@@ -1560,6 +2108,24 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     </div>
                   )}
                 </div>
+
+                <label className="pomodoro-volume-control">
+                  <Music2 size={12} aria-hidden="true" />
+                  <span>Volume</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={Math.round(pomodoroVolume * 100)}
+                    onChange={(event) => setPomodoroVolume(Number(event.target.value) / 100)}
+                    aria-label="Pomodoro audio volume"
+                  />
+                  <strong>{Math.round(pomodoroVolume * 100)}%</strong>
+                </label>
+
+                {pomodoroReloadNotice && pomodoroRunning && pomodoroMusicEnabled && (
+                  <p className="pomodoro-audio-notice">Music paused after reload. Tap the music button to resume sound.</p>
+                )}
               </div>
             </div>
 
@@ -1652,6 +2218,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 <p className="daily-goal-lock-note">Goal locked for today. Tomorrow gets one new change.</p>
               )}
 
+              {!settingsAvailable && !isGuest && (
+                <p className="daily-goal-lock-note">Run the user_settings SQL once to sync this goal across devices.</p>
+              )}
+
               {goalInfoOpen && (
                 <div className="daily-goal-info" role="note">
                   <p>
@@ -1696,7 +2266,29 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             </div>
 
             <div className="project-stats" aria-label="Project tag summary">
-              <h4>Completed project mix</h4>
+              <div className="project-stats-title-row">
+                <h4>Completed project mix</h4>
+                <button
+                  type="button"
+                  className="project-info-btn"
+                  onClick={() => setProjectInfoOpen((open) => !open)}
+                  aria-expanded={projectInfoOpen}
+                  aria-label="Show project mix guide"
+                >
+                  <Info size={12} />
+                </button>
+              </div>
+              {projectInfoOpen && (
+                <div className="project-info" role="note">
+                  <p>
+                    This shows which project tags keep getting your attention. Tap a row for recent cleared tasks, the
+                    folder for a full Focus map, or the red bin to remove the tag without deleting tasks.
+                  </p>
+                  <button type="button" onClick={() => setProjectInfoOpen(false)} aria-label="Close project mix guide">
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
               {projectStats.length === 0 ? (
                 <p className="muted roomy">Project tags will show up here once completed tasks have them.</p>
               ) : (
@@ -1712,34 +2304,43 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
                     return (
                       <div key={project} className="project-stat-group">
-                        <button
-                          type="button"
-                          className="project-stat-row"
-                          onClick={() => setOpenProjectStat(projectOpen ? null : project)}
-                          aria-expanded={projectOpen}
-                        >
-                          <span>#{project}</span>
-                          <div className="project-stat-track" aria-hidden="true">
-                            <i style={{ width: `${Math.max(12, Math.round((count / maxProjectCount) * 100))}%` }} />
-                          </div>
-                          <strong>
-                            {percent}% <small>{count}</small>
-                          </strong>
+                        <div className="project-stat-row">
                           <button
                             type="button"
-                            className="project-stat-delete"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              deleteProjectTag(project);
-                            }}
+                            className="project-stat-main"
+                            onClick={() => setOpenProjectStat(projectOpen ? null : project)}
+                            aria-expanded={projectOpen}
+                            aria-label={`Show recent cleared tasks for ${project}`}
+                          >
+                            <span>#{project}</span>
+                            <div className="project-stat-track" aria-hidden="true">
+                              <i style={{ width: `${Math.max(12, Math.round((count / maxProjectCount) * 100))}%` }} />
+                            </div>
+                            <strong>
+                              {percent}% <small>{count}</small>
+                            </strong>
+                            <ChevronDown size={13} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="project-stat-action project-stat-open"
+                            onClick={() => setSelectedProject(project)}
+                            title={`Open #${project} overview`}
+                            aria-label={`Open project overview for ${project}`}
+                          >
+                            <FolderOpen size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="project-stat-action project-stat-delete"
+                            onClick={() => deleteProjectTag(project)}
                             disabled={busy}
                             title={`Remove #${project}`}
                             aria-label={`Remove project tag ${project}`}
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={12} />
                           </button>
-                          <ChevronDown size={13} aria-hidden="true" />
-                        </button>
+                        </div>
 
                         {projectOpen && (
                           <div className="project-stat-detail">

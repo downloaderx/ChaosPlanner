@@ -15,10 +15,25 @@ export const THEMES = [
 
 const STORAGE_KEY = "overflow-focus-theme";
 
+function getRandomThemeId() {
+  return THEMES[Math.floor(Math.random() * THEMES.length)]?.id || "cozy";
+}
+
 export function useTheme() {
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "cozy";
-    return localStorage.getItem(STORAGE_KEY) || "cozy";
+
+    const storedTheme = localStorage.getItem(STORAGE_KEY);
+    if (THEMES.some((item) => item.id === storedTheme)) return storedTheme;
+
+    const randomTheme = getRandomThemeId();
+    try {
+      localStorage.setItem(STORAGE_KEY, randomTheme);
+    } catch (e) {
+      // localStorage unavailable - the random first theme just won't persist
+    }
+
+    return randomTheme;
   });
 
   useEffect(() => {
