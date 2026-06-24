@@ -1277,6 +1277,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   )}
   <p>An anti-chaos planner for noisy minds.</p>
   <div className="header-controls">
+    <span className="mobile-theme-logo brand-mark" aria-hidden="true" />
     <ThemeSwitcher theme={theme} onChange={onThemeChange} />
   </div>
 </div>

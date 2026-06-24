@@ -2982,6 +2982,8 @@ button.project-chip {
 
   .title-actions {
     padding-top: 0;
+    width: auto;
+    height: 24px;
   }
 
   .planner-header p {
@@ -2990,19 +2992,44 @@ button.project-chip {
   }
 
   .header-controls {
-    margin-top: 9px;
+    width: 100%;
+    margin-top: 10px;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+  }
+
+  .title-actions .brand-mark {
+    display: none;
+  }
+
+  .mobile-theme-logo {
+    display: block;
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
   }
 
   .theme-switcher {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 3px;
-    scrollbar-width: thin;
+    width: min(100%, 330px);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 7px;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
   .theme-btn {
-    flex: 0 0 auto;
-    padding: 6px 10px;
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    border-radius: 999px;
+  }
+
+  .planner-header .theme-btn span {
+    display: none;
   }
 
   .bp-main {
@@ -3112,6 +3139,10 @@ button.project-chip {
   align-items: flex-start;
   gap: 8px;
   margin-top: 10px;
+}
+
+.mobile-theme-logo {
+  display: none;
 }
 
 .theme-switcher {
