@@ -44,6 +44,20 @@ const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
 const REMOTE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
+function clampPomodoroVolume(value) {
+  const volume = Number(value);
+  return Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : POMODORO_VOLUME_DEFAULT;
+}
+
+function readStoredPomodoroVolume(userId) {
+  if (typeof window === "undefined") return POMODORO_VOLUME_DEFAULT;
+
+  const stored = Number(localStorage.getItem(`pomodoro-volume-${userId}`));
+  if (!Number.isFinite(stored)) return POMODORO_VOLUME_DEFAULT;
+
+  return clampPomodoroVolume(stored > 1 ? stored / 100 : stored);
+}
+
 function rotationFromId(id) {
   const str = String(id || "");
   let hash = 0;
@@ -308,11 +322,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [pomodoroHelpOpen, setPomodoroHelpOpen] = useState(false);
   const [pomodoroMusicEnabled, setPomodoroMusicEnabled] = useState(true);
   const [pomodoroReloadNotice, setPomodoroReloadNotice] = useState(initialPomodoro.resumedAfterReload);
-  const [pomodoroVolume, setPomodoroVolume] = useState(() => {
-    if (typeof window === "undefined") return POMODORO_VOLUME_DEFAULT;
-    const stored = Number(localStorage.getItem(`pomodoro-volume-${user.id}`));
-    return Number.isFinite(stored) ? Math.max(0, Math.min(1, stored)) : POMODORO_VOLUME_DEFAULT;
-  });
+  const [pomodoroVolume, setPomodoroVolume] = useState(() => readStoredPomodoroVolume(user.id));
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [openProjectStat, setOpenProjectStat] = useState(null);
@@ -338,6 +348,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const inputRef = useRef(null);
   const undoTimerRef = useRef(null);
   const pomodoroAudioRef = useRef(null);
+  const pomodoroAudioContextRef = useRef(null);
+  const pomodoroAudioGainRef = useRef(null);
+  const pomodoroAudioSourceRef = useRef(null);
   const audioStartTokenRef = useRef(0);
   const pomodoroRunningRef = useRef(pomodoroRunning);
   const pomodoroMusicEnabledRef = useRef(pomodoroMusicEnabled);
@@ -721,17 +734,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }, [pomodoroMusicEnabled]);
 
   useEffect(() => {
-    pomodoroVolumeRef.current = pomodoroVolume;
-
-    if (pomodoroAudioRef.current) {
-      pomodoroAudioRef.current.volume = pomodoroVolume;
-    }
-
-    try {
-      localStorage.setItem(`pomodoro-volume-${user.id}`, String(pomodoroVolume));
-    } catch (err) {
-      // localStorage unavailable, volume just won't persist for this session
-    }
+    applyPomodoroVolume(pomodoroVolume);
   }, [pomodoroVolume, user.id]);
 
   useEffect(() => {
@@ -979,6 +982,53 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setPomodoroSeconds(POMODORO_BREAK_SECONDS);
   }
 
+  function applyPomodoroVolume(nextVolume) {
+    const safeVolume = clampPomodoroVolume(nextVolume);
+    pomodoroVolumeRef.current = safeVolume;
+
+    if (pomodoroAudioRef.current) {
+      pomodoroAudioRef.current.volume = safeVolume;
+    }
+
+    if (pomodoroAudioGainRef.current) {
+      pomodoroAudioGainRef.current.gain.value = safeVolume;
+    }
+
+    try {
+      localStorage.setItem(`pomodoro-volume-${user.id}`, String(safeVolume));
+    } catch (err) {
+      // localStorage unavailable, volume just won't persist for this session
+    }
+  }
+
+  function changePomodoroVolume(event) {
+    const nextVolume = clampPomodoroVolume(Number(event.target.value) / 100);
+    applyPomodoroVolume(nextVolume);
+    setPomodoroVolume(nextVolume);
+  }
+
+  async function connectPomodoroAudioOutput(audio) {
+    if (typeof window === "undefined" || pomodoroAudioGainRef.current) return;
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    try {
+      const context = new AudioContext();
+      const source = context.createMediaElementSource(audio);
+      const gain = context.createGain();
+      gain.gain.value = pomodoroVolumeRef.current;
+      source.connect(gain);
+      gain.connect(context.destination);
+
+      pomodoroAudioContextRef.current = context;
+      pomodoroAudioSourceRef.current = source;
+      pomodoroAudioGainRef.current = gain;
+    } catch (err) {
+      // If Web Audio is unavailable, the audio element still plays with its native volume handling.
+    }
+  }
+
   function playPomodoroChime() {
     if (typeof window === "undefined") return;
 
@@ -1035,6 +1085,17 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     }
 
     const audio = pomodoroAudioRef.current;
+    await connectPomodoroAudioOutput(audio);
+
+    if (pomodoroAudioContextRef.current?.state === "suspended") {
+      try {
+        await pomodoroAudioContextRef.current.resume();
+      } catch (err) {
+        // Mobile browsers may still require another direct tap.
+      }
+    }
+
+    applyPomodoroVolume(pomodoroVolumeRef.current);
 
     if (
       startToken !== audioStartTokenRef.current ||
@@ -2226,8 +2287,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     type="range"
                     min="0"
                     max="100"
+                    step="1"
                     value={Math.round(pomodoroVolume * 100)}
-                    onChange={(event) => setPomodoroVolume(Number(event.target.value) / 100)}
+                    onChange={changePomodoroVolume}
+                    onInput={changePomodoroVolume}
                     aria-label="Pomodoro audio volume"
                   />
                   <strong>{Math.round(pomodoroVolume * 100)}%</strong>
