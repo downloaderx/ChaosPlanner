@@ -1,78 +1,37 @@
 
-  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m476[22m[2m[0m ms[22m
+> overflow-focus-supabase@0.1.0 dev
+> vite
 
-  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
-[2m8:13:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m8:30:03[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m8:30:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m8:31:44[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m8:31:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m8:33:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m8:35:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m12:48:42[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m13:41:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m15:46:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m15:46:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:03:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/Auth.jsx[22m
-[2m16:04:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:04:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:07:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:09:01[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/theme.jsx[22m
-[2m16:09:02[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:11:22[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:13:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:14:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:19:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/Auth.jsx[22m
-[2m16:20:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:20:39[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:23:38[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/Auth.jsx[22m
-[2m16:24:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:32:33[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/Auth.jsx[22m
-[2m16:33:04[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:45:26[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:49:22[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:53:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:53:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:55:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/Auth.jsx[22m
-[2m16:56:04[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m16:56:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:02:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:05:53[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:12:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:20:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/Auth.jsx[22m
-[2m17:21:09[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:36:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/Auth.jsx[22m
-[2m17:36:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:40:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:41:34[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:46:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m17:55:54[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:07:04[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:07:15[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:07:35[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:33:34[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:33:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:40:18[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:40:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:40:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:43:04[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:43:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:43:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:48:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:51:23[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:54:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:54:37[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:54:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:55:11[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m20:55:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:55:35[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m20:55:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
-[2m21:17:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m21:18:36[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m21:51:25[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m21:57:45[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m22:02:26[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m22:09:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m23:18:33[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m23:19:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
-[2m23:20:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+Port 5173 is in use, trying another one...
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m406[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://loca[2m20:34:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:34:21[22[2m20:34:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferP[2m20:36:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:37:06[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:37:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:37:45[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:37:53[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:38:23[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:38:47[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m20:45:25[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:45:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:45:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:46:07[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m20:46:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m20:46:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m20:47:36[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m21:41:07[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:08:53[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:09:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:19:23[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:19:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:20:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:20:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m22:22:51[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:23:01[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:23:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:23:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+[2m22:23:36[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m
+lanner.jsx[22m
+[2m22:23:36[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/BufferPlanner.jsx[22m

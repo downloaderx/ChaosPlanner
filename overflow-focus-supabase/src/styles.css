@@ -1500,6 +1500,12 @@ input:disabled {
   box-shadow: none;
 }
 
+.planner-header .desktop-title-logo {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+}
+
 .planner-header .brand-mark::before {
   width: 17px;
   height: 17px;
@@ -2645,6 +2651,10 @@ button.project-chip {
   line-height: 1.55;
 }
 
+.daily-goal-info p + p {
+  display: none;
+}
+
 .daily-goal-info strong {
   font-weight: 700;
 }
@@ -3351,9 +3361,10 @@ button.project-chip {
   .header-controls {
     width: 100%;
     margin-top: 10px;
-    display: grid;
-    justify-items: center;
+    display: flex;
+    align-items: center;
     gap: 8px;
+    overflow: hidden;
   }
 
   .title-brand-mark {
@@ -3368,21 +3379,30 @@ button.project-chip {
   }
 
   .theme-switcher {
-    width: min(100%, 330px);
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 7px;
-    overflow: visible;
-    padding-bottom: 0;
+    width: auto;
+    max-width: 100%;
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 1px 2px 5px 0;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .theme-btn {
-    width: 100%;
-    min-width: 0;
+    width: 34px;
+    min-width: 34px;
     height: 34px;
     min-height: 34px;
     padding: 0;
     border-radius: 999px;
+  }
+
+  .theme-switcher::-webkit-scrollbar {
+    display: none;
   }
 
   .planner-header .theme-btn span {
@@ -3832,6 +3852,141 @@ button.project-chip {
 .guest-sync-later {
   background: #eef2e9;
   color: #465545;
+}
+
+.trash-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18, 24, 19, 0.48);
+  backdrop-filter: blur(4px);
+}
+
+.trash-modal {
+  width: min(620px, 100%);
+  max-height: min(680px, calc(100vh - 40px));
+  overflow: auto;
+  border: var(--panel-border-width) var(--panel-border-style) var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 70px -34px rgba(0, 0, 0, 0.55);
+  padding: 18px;
+}
+
+.trash-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.trash-modal-header p {
+  margin: 0 0 4px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trash-modal-header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+.trash-modal-header button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.trash-empty {
+  margin: 16px 0 0;
+  color: var(--muted-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.trash-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.trash-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+  padding: 10px;
+}
+
+.trash-item div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.trash-item strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.trash-item span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.trash-restore-btn,
+.trash-delete-btn {
+  height: 30px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 0 10px;
+}
+
+.trash-delete-btn {
+  width: 30px;
+  padding: 0;
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+}
+
+.trash-delete-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
 }
 
 @media (max-width: 560px) {
@@ -4954,4 +5109,31 @@ button.project-chip {
 .auth-premenu .theme-btn span,
 .auth-premenu .random-theme-btn span {
   display: inline;
+}
+
+.planner-header .mobile-theme-logo {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .planner-header .desktop-title-logo {
+    display: none;
+  }
+
+  .planner-header .mobile-theme-logo {
+    display: block;
+  }
+
+  .planner-header .theme-switcher {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .planner-header .theme-btn {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+  }
 }

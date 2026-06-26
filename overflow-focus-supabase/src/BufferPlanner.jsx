@@ -42,6 +42,7 @@ const GUEST_SYNC_PROMPT_SNOOZE_KEY = "the-one-thing-guest-sync-prompt-snoozed-at
 const GUEST_SYNC_PROMPT_DELAY_MS = 2 * 60 * 1000;
 const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
+const REMOTE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
 function rotationFromId(id) {
   const str = String(id || "");
@@ -205,6 +206,36 @@ function getDailyGoalRank(clearedCount, goal) {
   return null;
 }
 
+function getDailyGoalMilestones(goal) {
+  const safeGoal = Math.max(1, goal);
+
+  return {
+    bronze: Math.max(1, Math.ceil(safeGoal / 3)),
+    silver: Math.max(1, Math.ceil(safeGoal / 2)),
+    gold: safeGoal,
+    platinum: safeGoal * 2,
+    diamond: safeGoal * 3,
+  };
+}
+
+function normalizeDailyGoalValue(value) {
+  const goal = Number(value);
+  return Number.isFinite(goal) && goal > 0 ? Math.max(1, Math.min(DAILY_GOAL_MAX, Math.round(goal))) : DAILY_GOAL_DEFAULT;
+}
+
+function readLocalDailyGoalSettings(userId) {
+  if (typeof window === "undefined") {
+    return { goal: DAILY_GOAL_DEFAULT, changedOn: "", hasStoredGoal: false };
+  }
+
+  const storedGoal = localStorage.getItem(`daily-goal-${userId}`);
+  return {
+    goal: normalizeDailyGoalValue(storedGoal),
+    changedOn: localStorage.getItem(`daily-goal-changed-on-${userId}`) || "",
+    hasStoredGoal: storedGoal !== null,
+  };
+}
+
 function getLocalDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -319,6 +350,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const dailyGoalComplete = clearedToday.length >= dailyGoal;
   const dailyGoalPercent = Math.round((dailyGoalProgress / dailyGoal) * 100);
   const dailyGoalRank = getDailyGoalRank(clearedToday.length, dailyGoal);
+  const dailyGoalMilestones = getDailyGoalMilestones(dailyGoal);
   const dailyGoalLockedToday = dailyGoalChangedOn === getLocalDateKey();
   const dailyGoalDraftNumber = dailyGoalDraft.trim() ? Number(dailyGoalDraft) : Number.NaN;
   const dailyGoalDraftValue = Number.isFinite(dailyGoalDraftNumber)
@@ -593,6 +625,25 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     [isGuest, user.id]
   );
 
+  const saveRemoteDailyGoalSettings = useCallback(
+    async (goal, changedOn) => {
+      if (isGuest) return;
+
+      const { error: settingsError } = await supabase.from("user_settings").upsert(
+        {
+          user_id: user.id,
+          daily_goal: goal,
+          daily_goal_changed_on: changedOn || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (settingsError) throw settingsError;
+    },
+    [isGuest, user.id]
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -757,6 +808,66 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       // localStorage unavailable, goal just won't persist for this session
     }
   }, [dailyGoal, isGuest, user.id]);
+
+  useEffect(() => {
+    if (isGuest || typeof window === "undefined") return undefined;
+
+    let cancelled = false;
+
+    async function refreshDailyGoalSettings() {
+      const { data, error: settingsError } = await supabase
+        .from("user_settings")
+        .select("daily_goal,daily_goal_changed_on")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (cancelled || settingsError || !data) return;
+
+      const remoteGoal = normalizeDailyGoalValue(data.daily_goal);
+      const remoteChangedOn = data.daily_goal_changed_on || "";
+      const localSettings = readLocalDailyGoalSettings(user.id);
+
+      if (localSettings.hasStoredGoal && localSettings.changedOn && localSettings.changedOn > remoteChangedOn) {
+        setDailyGoal(localSettings.goal);
+        setDailyGoalChangedOn(localSettings.changedOn);
+        try {
+          await saveRemoteDailyGoalSettings(localSettings.goal, localSettings.changedOn);
+        } catch (err) {
+          // Remote sync can wait; local goal is still applied.
+        }
+        return;
+      }
+
+      setDailyGoal(remoteGoal);
+      setDailyGoalChangedOn(remoteChangedOn);
+    }
+
+    async function refreshVisibleRemoteData() {
+      if (document.visibilityState !== "visible") return;
+
+      try {
+        await Promise.all([loadItems({ enforceCap: false }), refreshDailyGoalSettings()]);
+      } catch (err) {
+        // Background sync should not interrupt the current session.
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") refreshVisibleRemoteData();
+    }
+
+    const intervalId = window.setInterval(refreshVisibleRemoteData, REMOTE_SYNC_INTERVAL_MS);
+
+    window.addEventListener("focus", refreshVisibleRemoteData);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshVisibleRemoteData);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isGuest, loadItems, saveRemoteDailyGoalSettings, user.id]);
 
   useEffect(() => {
     setDailyGoalDraft(String(dailyGoal));
@@ -1262,7 +1373,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", id)
         .eq("user_id", user.id);
-
       if (deleteError) throw deleteError;
       if (deletedItem) {
         showUndoToast("Task moved to trash.", async () => {
@@ -1609,7 +1719,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             <div className="header-copy">
               
   <div className="title-row">
-    <span className="brand-mark title-brand-mark" aria-hidden="true" />
+    <span className="desktop-title-logo brand-mark" aria-hidden="true" />
     <h1>The One Thing</h1>
     <div className="title-actions">
       <button
@@ -1826,7 +1936,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       )}
 
       {trashOpen && (
-        <div className="project-modal-backdrop" role="presentation" onClick={() => setTrashOpen(false)}>
+        <div className="trash-modal-backdrop" role="presentation" onClick={() => setTrashOpen(false)}>
           <section
             className="trash-modal"
             role="dialog"
@@ -1834,9 +1944,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             aria-labelledby="trash-modal-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="project-modal-header">
+            <div className="trash-modal-header">
               <div>
-                <p className="project-modal-kicker">Recover mistakes</p>
+                <p>Recover mistakes</p>
                 <h2 id="trash-modal-title">Trash</h2>
               </div>
               <button type="button" onClick={() => setTrashOpen(false)} aria-label="Close trash">
@@ -2224,6 +2334,12 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
               {goalInfoOpen && (
                 <div className="daily-goal-info" role="note">
+                  <p>
+                    <strong>🥉</strong> {dailyGoalMilestones.bronze}/{dailyGoal} · <strong>🥈</strong>{" "}
+                    {dailyGoalMilestones.silver}/{dailyGoal} · <strong>🥇</strong> {dailyGoalMilestones.gold}/{dailyGoal} ·{" "}
+                    <strong>🏅</strong> {dailyGoalMilestones.platinum}/{dailyGoal} · <strong>💎</strong>{" "}
+                    {dailyGoalMilestones.diamond}/{dailyGoal}
+                  </p>
                   <p>
                     <strong>🥉</strong> 1/3 goal · <strong>🥈</strong> half goal · <strong>🥇</strong> goal done ·{" "}
                     <strong>🏅</strong> 2x goal · <strong>💎</strong> 3x goal
