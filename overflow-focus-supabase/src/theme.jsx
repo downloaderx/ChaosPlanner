@@ -14,6 +14,7 @@ export const THEMES = [
 ];
 
 const STORAGE_KEY = "overflow-focus-theme";
+const INTRO_QUICK_THEME_IDS = ["cozy", "comic", "pixel"];
 
 function getRandomThemeId() {
   return THEMES[Math.floor(Math.random() * THEMES.length)]?.id || "cozy";
@@ -64,14 +65,14 @@ export function ThemeSwitcher({ theme, onChange }) {
           <button
             key={t.id}
             type="button"
-            className={`theme-btn${theme === t.id ? " active" : ""}`}
+            className={`theme-btn theme-${t.id}${theme === t.id ? " active" : ""}`}
             onClick={() => onChange(t.id)}
             aria-pressed={theme === t.id}
             aria-label={`${t.label} theme`}
             title={`${t.label} theme`}
           >
-            <Icon size={13} strokeWidth={2.2} aria-hidden="true" />
-            <span>{t.label}</span>
+            <Icon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+            <span className="theme-label">{t.label}</span>
           </button>
         );
       })}
@@ -83,9 +84,89 @@ export function ThemeSwitcher({ theme, onChange }) {
         aria-label="Random theme"
         title="Random theme"
       >
-        <Shuffle size={13} strokeWidth={2.2} aria-hidden="true" />
-        <span>Random</span>
+        <Shuffle className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+        <span className="theme-label">Random</span>
       </button>
+    </div>
+  );
+}
+
+export function IntroThemePicker({ theme, onChange }) {
+  const [open, setOpen] = useState(false);
+  const quickThemes = THEMES.filter((item) => INTRO_QUICK_THEME_IDS.includes(item.id));
+  const moreThemes = THEMES.filter((item) => !INTRO_QUICK_THEME_IDS.includes(item.id));
+
+  function randomizeTheme() {
+    const availableThemes = THEMES.filter((t) => t.id !== theme);
+    const nextTheme = availableThemes[Math.floor(Math.random() * availableThemes.length)] || THEMES[0];
+    onChange(nextTheme.id);
+    setOpen(false);
+  }
+
+  function pickTheme(themeId) {
+    onChange(themeId);
+    setOpen(false);
+  }
+
+  return (
+    <div className="intro-theme-picker">
+      <div className="intro-theme-quick" role="group" aria-label="Quick theme choices">
+        {quickThemes.map((t) => {
+          const Icon = t.Icon;
+
+          return (
+            <button
+              key={t.id}
+              type="button"
+              className={`intro-theme-btn theme-${t.id}${theme === t.id ? " active" : ""}`}
+              onClick={() => pickTheme(t.id)}
+              aria-pressed={theme === t.id}
+              aria-label={`${t.label} theme`}
+              title={`${t.label} theme`}
+            >
+              <Icon className="intro-theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          className={`intro-theme-btn intro-theme-more${open ? " active" : ""}`}
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-label="More themes"
+          title="More themes"
+        >
+          More
+        </button>
+      </div>
+
+      {open && (
+        <div className="intro-theme-popover" role="group" aria-label="More theme choices">
+          {moreThemes.map((t) => {
+            const Icon = t.Icon;
+
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className={`intro-theme-btn theme-${t.id}${theme === t.id ? " active" : ""}`}
+                onClick={() => pickTheme(t.id)}
+                aria-pressed={theme === t.id}
+              >
+                <Icon className="intro-theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
+
+          <button type="button" className="intro-theme-btn random-theme-btn" onClick={randomizeTheme}>
+            <Shuffle className="intro-theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+            <span>Random</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

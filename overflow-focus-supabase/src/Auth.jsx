@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
-import { LogIn, Play, Sparkles, UserPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogIn, Music2, Play, SkipBack, Sparkles, UserPlus } from "lucide-react";
 import { supabase } from "./supabaseClient";
-import { ThemeSwitcher } from "./theme.jsx";
+import { IntroThemePicker, THEMES } from "./theme.jsx";
+
+const GALLERY_SLIDE_COUNT = 6;
+const GALLERY_AUTOPLAY_MS = 8000;
+const GALLERY_SLIDE_TITLES = [
+  "See the planner",
+  "How the pieces work",
+  "Try without an account",
+  "Focus player",
+  "Themes for every brain",
+  "Save progress later",
+];
 
 function getPasswordErrors(password) {
   const errors = [];
@@ -30,6 +41,7 @@ export default function Auth({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [formActive, setFormActive] = useState(false);
+  const [gallerySlide, setGallerySlide] = useState(0);
 
   useEffect(() => {
     if (recoveryMode) {
@@ -43,6 +55,20 @@ export default function Auth({
     setError("");
     setMessage("");
   }, [initialMode, recoveryMode]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+      return undefined;
+    }
+
+    const galleryTimer = window.setTimeout(() => {
+      setGallerySlide((slide) => (slide + 1) % GALLERY_SLIDE_COUNT);
+    }, GALLERY_AUTOPLAY_MS);
+
+    return () => {
+      window.clearTimeout(galleryTimer);
+    };
+  }, [gallerySlide]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -208,6 +234,14 @@ export default function Auth({
     }, 80);
   }
 
+  function showPreviousGallerySlide() {
+    setGallerySlide((slide) => (slide === 0 ? GALLERY_SLIDE_COUNT - 1 : slide - 1));
+  }
+
+  function showNextGallerySlide() {
+    setGallerySlide((slide) => (slide + 1) % GALLERY_SLIDE_COUNT);
+  }
+
   return (
     <main className={formActive ? "auth-shell form-active" : "auth-shell"}>
       <div className="auth-creature-path" aria-hidden="true">
@@ -221,11 +255,10 @@ export default function Auth({
         <div className="auth-story-panel">
           <div className="auth-brand-row">
             <span className="logo-mark" aria-hidden="true" />
-            {theme && onThemeChange && <ThemeSwitcher theme={theme} onChange={onThemeChange} />}
+            {theme && onThemeChange && <IntroThemePicker theme={theme} onChange={onThemeChange} />}
           </div>
 
           <div className="auth-story-copy">
-            <span className="auth-kicker">For the “wait, also...” brain</span>
             <h1>The One Thing</h1>
             <p>
               You start one task, remember seven others, then lose the thread. Drop every thought, choose one for now,
@@ -233,22 +266,186 @@ export default function Auth({
             </p>
           </div>
 
-          <div className="auth-feature-grid" aria-label="Additional features">
-            <div>
-              <Sparkles size={15} aria-hidden="true" />
-              <span>Guest mode first</span>
+          <div className="auth-product-gallery" aria-label="Product preview gallery">
+            <div className="auth-gallery-topline">
+              <span>{GALLERY_SLIDE_TITLES[gallerySlide]}</span>
             </div>
-            <div>
-              <Sparkles size={15} aria-hidden="true" />
-              <span>Project tags</span>
+
+            <div className="auth-gallery-frame">
+              <div className="auth-gallery-controls">
+                <button type="button" onClick={showPreviousGallerySlide} aria-label="Show previous preview">
+                  <ChevronLeft size={18} aria-hidden="true" />
+                </button>
+                <button type="button" onClick={showNextGallerySlide} aria-label="Show next preview">
+                  <ChevronRight size={18} aria-hidden="true" />
+                </button>
+              </div>
+
+              {gallerySlide === 0 && (
+                <div className="auth-gallery-shot">
+                  <img
+                    src="/auth-gallery-screenshot.png"
+                    alt="The One Thing planner with live thoughts, focus, later, and done panels"
+                  />
+                </div>
+              )}
+
+              {gallerySlide === 1 && (
+                <div className="auth-layout-map" aria-label="The One Thing layout map">
+                  <div className="auth-map-panel auth-map-live">
+                    <span>Live</span>
+                    <strong>fresh thoughts</strong>
+                    <small>new tasks land here first</small>
+                  </div>
+
+                  <div className="auth-map-center">
+                    <div className="auth-map-panel auth-map-focus">
+                      <span>The One Thing</span>
+                      <strong>one task now</strong>
+                      <small>play starts focus</small>
+                    </div>
+
+                    <div className="auth-map-panel auth-map-later">
+                      <span>Later</span>
+                      <strong>saved for when it can wait</strong>
+                    </div>
+                  </div>
+
+                  <div className="auth-map-panel auth-map-done">
+                    <span>Done</span>
+                    <strong>cleared today</strong>
+                    <small>completed tasks and project mix</small>
+                    <div className="auth-map-projects" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                  </div>
+
+                  <div className="auth-map-callouts" aria-hidden="true">
+                    <svg className="auth-map-arrows" viewBox="0 0 900 470" preserveAspectRatio="none">
+                      <defs>
+                        <marker
+                          id="auth-map-arrowhead"
+                          viewBox="0 0 10 10"
+                          refX="8"
+                          refY="5"
+                          markerWidth="7"
+                          markerHeight="7"
+                          orient="auto-start-reverse"
+                        >
+                          <path d="M 1.5 2 L 8 5 L 1.5 8" />
+                        </marker>
+                      </defs>
+                      <path className="auth-map-arrow-path" d="M 170 382 C 140 340, 132 282, 136 226" />
+                      <path className="auth-map-arrow-path" d="M 420 232 C 450 184, 478 170, 522 154" />
+                      <path className="auth-map-arrow-path" d="M 456 404 C 438 384, 428 366, 424 346" />
+                      <path className="auth-map-arrow-path" d="M 728 374 C 768 328, 786 274, 784 216" />
+                    </svg>
+                    <span className="auth-map-callout callout-live">dump thoughts here first</span>
+                    <span className="auth-map-callout callout-focus">pick one to play</span>
+                    <span className="auth-map-callout callout-later">not now? save it</span>
+                    <span className="auth-map-callout callout-done">finished stuff lands here</span>
+                  </div>
+                </div>
+              )}
+
+              {gallerySlide === 2 && (
+                <div className="auth-gallery-message auth-gallery-guest">
+                  <Sparkles size={19} aria-hidden="true" />
+                  <strong>No account needed for trying.</strong>
+                  <p>Open guest mode, drop a few thoughts, and see if the one-task flow calms the noise.</p>
+                  <button type="button" onClick={onContinueAsGuest}>
+                    <Play size={15} aria-hidden="true" />
+                    Try in guest mode
+                  </button>
+                </div>
+              )}
+
+              {gallerySlide === 3 && (
+                <div className="auth-gallery-message auth-gallery-player">
+                  <Music2 size={19} aria-hidden="true" />
+                  <strong>Music and time, in the same focus lane.</strong>
+                  <p>Start a 25-minute focus block, switch tracks when your brain needs a different texture, then unlock a 5-minute break.</p>
+                  <div className="auth-player-preview" aria-label="Music focus timer preview">
+                    <div className="auth-player-kicker">
+                      <span />
+                      <strong>The One Thing</strong>
+                    </div>
+                    <div className="auth-player-screen">
+                      <strong>one task now</strong>
+                      <small>pick one thought and press play</small>
+                    </div>
+                    <div className="auth-player-controls" aria-hidden="true">
+                      <button type="button">
+                        <Play size={13} />
+                      </button>
+                      <button type="button" className="active">
+                        <SkipBack size={13} />
+                      </button>
+                      <button type="button">
+                        <Music2 size={13} />
+                      </button>
+                      <span>25</span>
+                      <span>5</span>
+                      <i>
+                        <Music2 size={11} />
+                        Volume
+                      </i>
+                      <b>05:00</b>
+                    </div>
+                    <div className="auth-player-progress" aria-hidden="true">
+                      <i />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {gallerySlide === 4 && (
+                <div className="auth-gallery-message auth-gallery-themes">
+                  <Sparkles size={19} aria-hidden="true" />
+                  <strong>Lots of moods, same simple system.</strong>
+                  <p>Pick the surface that matches your brain today. The palette includes cozy, comic, scrapbook, pixel, ghibli, cyberpunk, plant, pink, and brutalist modes.</p>
+                  <div className="auth-theme-preview" aria-hidden="true">
+                    {THEMES.map((item) => {
+                      const Icon = item.Icon;
+
+                      return (
+                        <span key={item.id} className={`theme-btn theme-${item.id}`}>
+                          <Icon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+                          <span className="theme-label">{item.label}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {gallerySlide === 5 && (
+                <div className="auth-gallery-message auth-gallery-account">
+                  <UserPlus size={19} aria-hidden="true" />
+                  <strong>Create an account when progress matters.</strong>
+                  <p>Keep your cleared tasks, project progress, and daily rhythm available after today.</p>
+                  <div className="auth-account-preview" aria-hidden="true">
+                    <span>cleared tasks stay in history</span>
+                    <span>project progress stays visible</span>
+                    <span>sync when you switch devices</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <Sparkles size={15} aria-hidden="true" />
-              <span>Pomodoro focus</span>
-            </div>
-            <div>
-              <Sparkles size={15} aria-hidden="true" />
-              <span>Completion mix</span>
+
+            <div className="auth-gallery-dots" aria-label="Preview slides">
+              {GALLERY_SLIDE_TITLES.map((title, index) => (
+                <button
+                  key={title}
+                  type="button"
+                  className={gallerySlide === index ? "active" : ""}
+                  onClick={() => setGallerySlide(index)}
+                  aria-label={`Show ${title.toLowerCase()} preview`}
+                  aria-pressed={gallerySlide === index}
+                />
+              ))}
             </div>
           </div>
         </div>
