@@ -22,6 +22,7 @@ import {
   Hash,
   Pencil,
   FolderOpen,
+  Shuffle,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -360,6 +361,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [unstuckOpen, setUnstuckOpen] = useState(false);
   const [unstuckProject, setUnstuckProject] = useState("");
   const [unstuckSuggestions, setUnstuckSuggestions] = useState([]);
+  const [wheelResult, setWheelResult] = useState(null);
+  const [wheelAngle, setWheelAngle] = useState(0);
+  const [wheelSpinning, setWheelSpinning] = useState(false);
   const [editingItemId, setEditingItemId] = useState(null);
   const [editingItemValue, setEditingItemValue] = useState("");
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -432,6 +436,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const breakUnlocked = pomodoroMode === "break";
   const sortedThoughts = sortByProjectThenText(thoughts);
   const sortedSetAside = sortByProjectThenText(setAside);
+  const wheelItems = [
+    ...sortedThoughts.map((item) => ({ ...item, sourceColumn: "live" })),
+    ...sortedSetAside.map((item) => ({ ...item, sourceColumn: "later" })),
+  ];
   const allVisibleItems = [...thoughts, ...setAside, ...(focus ? [focus] : []), ...log];
   const projectOptions = Array.from(new Set(allVisibleItems.map((item) => item.projectTag).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b)
@@ -1329,6 +1337,39 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     addLiveThought(suggestion.text, suggestion.projectTag, () => {
       setUnstuckSuggestions((suggestions) => suggestions.filter((item) => item.id !== suggestion.id));
     });
+  }
+
+  function spinPriorityWheel() {
+    if (wheelItems.length === 0 || wheelSpinning) return;
+
+    const pickedIndex = Math.floor(Math.random() * wheelItems.length);
+    const pickedItem = wheelItems[pickedIndex];
+    const fullTurns = 4 + Math.floor(Math.random() * 3);
+    const sliceAngle = 360 / wheelItems.length;
+    const targetAngle = fullTurns * 360 + pickedIndex * sliceAngle + sliceAngle / 2;
+
+    setWheelSpinning(true);
+    setWheelResult(null);
+    setWheelAngle((currentAngle) => currentAngle + targetAngle);
+
+    window.setTimeout(() => {
+      setWheelResult(pickedItem);
+      setWheelSpinning(false);
+    }, 980);
+  }
+
+  function clearWheelResult() {
+    setWheelResult(null);
+  }
+
+  function bringWheelResultBack(item) {
+    bringBack(item);
+    clearWheelResult();
+  }
+
+  function promoteWheelResult(item) {
+    promote(item);
+    clearWheelResult();
   }
 
   function startItemEdit(item) {
@@ -2237,6 +2278,71 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
             {unstuckOpen && (
               <div className="unstuck-body">
+                <div className="priority-wheel" aria-label="Random task wheel">
+                  <div className="priority-wheel-stage">
+                    <div
+                      className={wheelSpinning ? "priority-wheel-disc spinning" : "priority-wheel-disc"}
+                      style={{ transform: `rotate(${wheelAngle}deg)` }}
+                      aria-hidden="true"
+                    >
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                    <div className="priority-wheel-pointer" aria-hidden="true" />
+                  </div>
+                  <div className="priority-wheel-copy">
+                    <h4>spin from live + later</h4>
+                    <p>{wheelItems.length} possible task{wheelItems.length === 1 ? "" : "s"}. It picks, you still decide.</p>
+                    <button
+                      type="button"
+                      className="priority-wheel-spin"
+                      onClick={spinPriorityWheel}
+                      disabled={busy || wheelSpinning || wheelItems.length === 0}
+                    >
+                      <Shuffle size={13} />
+                      {wheelSpinning ? "spinning" : "spin"}
+                    </button>
+                  </div>
+                </div>
+
+                {wheelResult && (
+                  <div className="priority-wheel-result" role="status">
+                    <div className="priority-wheel-result-copy">
+                      <span>{wheelResult.sourceColumn === "later" ? "from later" : "from live"}</span>
+                      <strong>{wheelResult.text}</strong>
+                      {wheelResult.projectTag && (
+                        <span className="project-chip wheel-result-chip" style={getProjectTagStyle(wheelResult.projectTag)}>
+                          #{wheelResult.projectTag}
+                        </span>
+                      )}
+                    </div>
+                    <div className="priority-wheel-result-actions">
+                      {wheelResult.sourceColumn === "later" ? (
+                        <button type="button" className="unstuck-add" onClick={() => bringWheelResultBack(wheelResult)} disabled={busy}>
+                          <Plus size={13} />
+                          live
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="unstuck-add"
+                          onClick={() => promoteWheelResult(wheelResult)}
+                          disabled={busy || Boolean(focus)}
+                          title={focus ? "The One Thing player is already busy" : "Focus in The One Thing player"}
+                        >
+                          <Play size={13} />
+                          focus
+                        </button>
+                      )}
+                      <button type="button" className="unstuck-delete" onClick={clearWheelResult} disabled={busy} aria-label="Clear wheel pick">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="unstuck-controls">
                   <label className="unstuck-project-field">
                     <Hash size={12} aria-hidden="true" />
