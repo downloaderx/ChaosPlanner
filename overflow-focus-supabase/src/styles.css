@@ -2599,6 +2599,184 @@ button.project-chip.editable:focus-visible {
   transform: scale(1.06);
 }
 
+.unstuck-panel {
+  margin: 12px 0 14px;
+  border: 1px solid var(--chip-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--chip-bg) 72%, transparent);
+  padding: 10px;
+}
+
+.unstuck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.unstuck-header h3 {
+  margin: 0;
+  color: var(--heading-muted);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.unstuck-header p {
+  margin: 3px 0 0;
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.unstuck-toggle,
+.unstuck-generate,
+.unstuck-add,
+.unstuck-delete {
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  min-height: 30px;
+  background: var(--surface);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.unstuck-toggle:hover,
+.unstuck-generate:hover,
+.unstuck-add:hover,
+.unstuck-delete:hover {
+  filter: brightness(0.98) saturate(1.08);
+}
+
+.unstuck-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.unstuck-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.unstuck-project-field,
+.unstuck-mini-project {
+  min-width: 0;
+  border: 1px solid var(--chip-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--muted-text);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.unstuck-project-field {
+  padding: 0 9px;
+  min-height: 34px;
+}
+
+.unstuck-project-field input,
+.unstuck-mini-project input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  outline: 0;
+}
+
+.unstuck-project-field input {
+  font-size: 12px;
+}
+
+.unstuck-empty {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.unstuck-list {
+  display: grid;
+  gap: 8px;
+}
+
+.unstuck-suggestion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--chip-border) 84%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  padding: 8px;
+}
+
+.unstuck-suggestion textarea {
+  min-width: 0;
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  resize: vertical;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  outline: 0;
+}
+
+.unstuck-suggestion-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  color: var(--muted-text);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.unstuck-mini-project {
+  width: min(150px, 100%);
+  min-height: 26px;
+  padding: 0 7px;
+}
+
+.unstuck-mini-project input {
+  font-size: 11px;
+}
+
+.unstuck-actions {
+  display: grid;
+  grid-template-columns: 30px minmax(52px, auto);
+  align-content: start;
+  gap: 6px;
+}
+
+.unstuck-delete {
+  width: 30px;
+  padding: 0;
+  color: var(--muted-light);
+}
+
+.unstuck-add {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
 .edit-entry-btn {
   width: 28px;
   height: 28px;
@@ -7441,5 +7619,35 @@ button.project-chip.editable:focus-visible {
     background: linear-gradient(135deg, #ffe866, #73c3f4 48%, #ef4277) !important;
     border-color: #16121f !important;
     color: #0a0a0a !important;
+  }
+
+  .unstuck-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 9px !important;
+    overflow: hidden !important;
+  }
+
+  .unstuck-header {
+    align-items: flex-start !important;
+  }
+
+  .unstuck-toggle {
+    min-width: 74px !important;
+    padding-inline: 8px !important;
+  }
+
+  .unstuck-controls,
+  .unstuck-suggestion {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .unstuck-actions {
+    grid-template-columns: 30px minmax(64px, max-content) !important;
+    justify-content: end !important;
+  }
+
+  .unstuck-suggestion textarea {
+    min-height: 50px !important;
   }
 }

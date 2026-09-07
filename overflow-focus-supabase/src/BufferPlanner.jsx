@@ -230,6 +230,13 @@ function sortByProjectThenText(items) {
   });
 }
 
+function summarizeSuggestionAnchor(text) {
+  const normalized = (text || "").trim().replace(/\s+/g, " ");
+  if (normalized.length <= 72) return normalized;
+
+  return `${normalized.slice(0, 69).trim()}...`;
+}
+
 function isFinishedToday(item) {
   const finished = new Date(item.finishedAt);
   if (!finished.getTime()) return false;
@@ -350,6 +357,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [trash, setTrash] = useState([]);
   const [draft, setDraft] = useState("");
   const [draftProject, setDraftProject] = useState("");
+  const [unstuckOpen, setUnstuckOpen] = useState(false);
+  const [unstuckProject, setUnstuckProject] = useState("");
+  const [unstuckSuggestions, setUnstuckSuggestions] = useState([]);
   const [editingItemId, setEditingItemId] = useState(null);
   const [editingItemValue, setEditingItemValue] = useState("");
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -1199,10 +1209,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     stopPomodoroMusic();
   }
 
-  function addThought(event) {
-    event?.preventDefault?.();
-    const text = draft.trim();
-    const projectTag = normalizeProjectTag(draftProject);
+  function addLiveThought(textValue, projectValue = "", afterSave) {
+    const text = textValue.trim();
+    const projectTag = normalizeProjectTag(projectValue);
     if (!text) return;
 
     runMutation(async () => {
@@ -1210,9 +1219,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         const items = readGuestItems();
         items.unshift(createLocalItem({ column: "thoughts", text, projectTag }));
         writeGuestItems(items);
-        setDraft("");
-        setDraftProject("");
-        inputRef.current?.focus();
+        afterSave?.();
         await loadItems();
         return;
       }
@@ -1233,10 +1240,94 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       if (insertError) throw insertError;
 
+      afterSave?.();
+      await loadItems();
+    });
+  }
+
+  function addThought(event) {
+    event?.preventDefault?.();
+    addLiveThought(draft, draftProject, () => {
       setDraft("");
       setDraftProject("");
       inputRef.current?.focus();
-      await loadItems();
+    });
+  }
+
+  function buildUnstuckSuggestions() {
+    const projectTag = normalizeProjectTag(unstuckProject) || normalizeProjectTag(draftProject) || focus?.projectTag || projectOptions[0] || "";
+    const activeItems = [...(focus ? [focus] : []), ...thoughts, ...setAside];
+    const projectItems = projectTag ? activeItems.filter((item) => item.projectTag === projectTag) : activeItems;
+    const anchorItem = focus || sortedThoughts[0] || sortedSetAside[0] || projectItems[0] || activeItems[0];
+    const anchorText = summarizeSuggestionAnchor(anchorItem?.text || draft.trim());
+    const suggestionProject = projectTag || anchorItem?.projectTag || "";
+
+    const rawSuggestions = [
+      anchorText && {
+        text: `do a 10 minute version of: ${anchorText}`,
+        projectTag: suggestionProject,
+        hint: "small enough to start, not big enough to become a whole plan",
+      },
+      anchorText && {
+        text: `open the place/file/tool for: ${anchorText}`,
+        projectTag: suggestionProject,
+        hint: "just make the next action visible",
+      },
+      projectTag && {
+        text: `write one tiny next step for #${projectTag}`,
+        projectTag,
+        hint: "use this if the project feels too foggy",
+      },
+      projectTag && projectItems.length > 1 && {
+        text: `pick one #${projectTag} task and park the rest for later`,
+        projectTag,
+        hint: "gentle triage, no perfect ordering needed",
+      },
+      thoughts.length > 2 && {
+        text: "move one not-now live thought to later",
+        projectTag: "",
+        hint: "reduce the competition on the screen",
+      },
+      {
+        text: "choose the task that would make the room in your head quieter",
+        projectTag: suggestionProject,
+        hint: "a soft priority check, not a command",
+      },
+    ].filter(Boolean);
+
+    const seen = new Set();
+    return rawSuggestions
+      .filter((suggestion) => {
+        const key = `${suggestion.text.toLowerCase()}|${suggestion.projectTag.toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 6)
+      .map((suggestion, index) => ({
+        id: `unstuck-${Date.now()}-${index}`,
+        ...suggestion,
+      }));
+  }
+
+  function generateUnstuckSuggestions() {
+    setUnstuckOpen(true);
+    setUnstuckSuggestions(buildUnstuckSuggestions());
+  }
+
+  function updateUnstuckSuggestion(id, patch) {
+    setUnstuckSuggestions((suggestions) =>
+      suggestions.map((suggestion) => (suggestion.id === id ? { ...suggestion, ...patch } : suggestion))
+    );
+  }
+
+  function deleteUnstuckSuggestion(id) {
+    setUnstuckSuggestions((suggestions) => suggestions.filter((suggestion) => suggestion.id !== id));
+  }
+
+  function addUnstuckSuggestionToLive(suggestion) {
+    addLiveThought(suggestion.text, suggestion.projectTag, () => {
+      setUnstuckSuggestions((suggestions) => suggestions.filter((item) => item.id !== suggestion.id));
     });
   }
 
@@ -2126,6 +2217,99 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
               <p className="project-tag-notice">Run the project_tag SQL once to save project tags.</p>
             )}
           </form>
+
+          <div className={unstuckOpen ? "unstuck-panel open" : "unstuck-panel"}>
+            <div className="unstuck-header">
+              <div>
+                <h3>priority paralysis</h3>
+                <p>Soft suggestions only. Keep what helps, delete the rest.</p>
+              </div>
+              <button
+                type="button"
+                className="unstuck-toggle"
+                onClick={() => setUnstuckOpen((open) => !open)}
+                aria-expanded={unstuckOpen}
+              >
+                <Lightbulb size={13} />
+                {unstuckOpen ? "hide" : "unstuck"}
+              </button>
+            </div>
+
+            {unstuckOpen && (
+              <div className="unstuck-body">
+                <div className="unstuck-controls">
+                  <label className="unstuck-project-field">
+                    <Hash size={12} aria-hidden="true" />
+                    <span className="sr-only">Project to softly break down</span>
+                    <input
+                      value={unstuckProject}
+                      onChange={(event) => setUnstuckProject(event.target.value)}
+                      list="project-tag-options"
+                      placeholder="optional project"
+                      disabled={busy}
+                    />
+                  </label>
+                  <button type="button" className="unstuck-generate" onClick={generateUnstuckSuggestions} disabled={busy}>
+                    <Lightbulb size={13} />
+                    suggest
+                  </button>
+                </div>
+
+                {unstuckSuggestions.length === 0 ? (
+                  <p className="unstuck-empty">Tap suggest for a few possible next moves. Nothing gets added until you choose it.</p>
+                ) : (
+                  <div className="unstuck-list" aria-label="Priority paralysis suggestions">
+                    {unstuckSuggestions.map((suggestion) => (
+                      <div key={suggestion.id} className="unstuck-suggestion">
+                        <textarea
+                          value={suggestion.text}
+                          onChange={(event) => updateUnstuckSuggestion(suggestion.id, { text: event.target.value })}
+                          aria-label="Edit suggestion"
+                          disabled={busy}
+                        />
+                        <div className="unstuck-suggestion-meta">
+                          <label className="unstuck-mini-project">
+                            <Hash size={11} aria-hidden="true" />
+                            <span className="sr-only">Suggestion project tag</span>
+                            <input
+                              value={suggestion.projectTag}
+                              onChange={(event) =>
+                                updateUnstuckSuggestion(suggestion.id, { projectTag: event.target.value })
+                              }
+                              list="project-tag-options"
+                              placeholder="tag"
+                              disabled={busy}
+                            />
+                          </label>
+                          <span>{suggestion.hint}</span>
+                        </div>
+                        <div className="unstuck-actions">
+                          <button
+                            type="button"
+                            className="unstuck-delete"
+                            onClick={() => deleteUnstuckSuggestion(suggestion.id)}
+                            disabled={busy}
+                            aria-label="Delete suggestion"
+                          >
+                            <X size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="unstuck-add"
+                            onClick={() => addUnstuckSuggestionToLive(suggestion)}
+                            disabled={busy || !suggestion.text.trim()}
+                          >
+                            <Plus size={13} />
+                            live
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="bp-scroll thought-list">
             {!loaded ? (
