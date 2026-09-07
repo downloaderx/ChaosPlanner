@@ -6775,10 +6775,23 @@ button.project-chip.editable:focus-visible {
   [data-theme="ghibli"] .planner-header .theme-btn .theme-icon,
   [data-theme="cyberpunk"] .planner-header .theme-btn .theme-icon,
   [data-theme="brutalist"] .planner-header .theme-btn .theme-icon {
-    width: 17px !important;
-    height: 17px !important;
-    min-width: 17px !important;
-    flex: 0 0 17px !important;
+    display: none !important;
+  }
+
+  .planner-header .theme-btn .theme-mobile-mark,
+  [data-theme="pixel"] .planner-header .theme-btn .theme-mobile-mark,
+  [data-theme="ghibli"] .planner-header .theme-btn .theme-mobile-mark,
+  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-mobile-mark,
+  [data-theme="brutalist"] .planner-header .theme-btn .theme-mobile-mark {
+    display: inline-grid !important;
+    place-items: center;
+    color: inherit !important;
+    font-family: "IBM Plex Mono", monospace !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .sticky-note,
@@ -6883,35 +6896,12 @@ button.project-chip.editable:focus-visible {
   [data-theme="pixel"] .planner-header .theme-btn .theme-icon,
   [data-theme="ghibli"] .planner-header .theme-btn .theme-icon,
   [data-theme="cyberpunk"] .planner-header .theme-btn .theme-icon {
-    color: inherit !important;
-    display: block !important;
-    opacity: 1 !important;
-    stroke: currentColor !important;
-    stroke-width: 2.8 !important;
-    visibility: visible !important;
-  }
-
-  [data-theme="pixel"] .planner-header .theme-pixel .theme-icon,
-  [data-theme="pixel"] .planner-header .theme-ghibli .theme-icon,
-  [data-theme="pixel"] .planner-header .theme-cyberpunk .theme-icon,
-  [data-theme="ghibli"] .planner-header .theme-pixel .theme-icon,
-  [data-theme="ghibli"] .planner-header .theme-ghibli .theme-icon,
-  [data-theme="ghibli"] .planner-header .theme-cyberpunk .theme-icon,
-  [data-theme="cyberpunk"] .planner-header .theme-pixel .theme-icon,
-  [data-theme="cyberpunk"] .planner-header .theme-ghibli .theme-icon,
-  [data-theme="cyberpunk"] .planner-header .theme-cyberpunk .theme-icon {
     display: none !important;
   }
 
-  [data-theme="pixel"] .planner-header .theme-pixel .theme-mobile-mark,
-  [data-theme="pixel"] .planner-header .theme-ghibli .theme-mobile-mark,
-  [data-theme="pixel"] .planner-header .theme-cyberpunk .theme-mobile-mark,
-  [data-theme="ghibli"] .planner-header .theme-pixel .theme-mobile-mark,
-  [data-theme="ghibli"] .planner-header .theme-ghibli .theme-mobile-mark,
-  [data-theme="ghibli"] .planner-header .theme-cyberpunk .theme-mobile-mark,
-  [data-theme="cyberpunk"] .planner-header .theme-pixel .theme-mobile-mark,
-  [data-theme="cyberpunk"] .planner-header .theme-ghibli .theme-mobile-mark,
-  [data-theme="cyberpunk"] .planner-header .theme-cyberpunk .theme-mobile-mark {
+  [data-theme="pixel"] .planner-header .theme-btn .theme-mobile-mark,
+  [data-theme="ghibli"] .planner-header .theme-btn .theme-mobile-mark,
+  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-mobile-mark {
     display: inline-grid !important;
     place-items: center;
     color: inherit !important;
