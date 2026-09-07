@@ -4260,6 +4260,10 @@ button.project-chip.editable:focus-visible {
   line-height: 1;
 }
 
+.theme-mobile-mark {
+  display: none;
+}
+
 .theme-btn.active {
   transform: none;
   box-shadow: 0 2px 0 #16121f, inset 0 0 0 2px rgba(255, 255, 255, 0.42);
@@ -6864,6 +6868,132 @@ button.project-chip.editable:focus-visible {
   .bp-aside-row {
     grid-template-columns: minmax(0, 1fr) repeat(3, 28px);
     gap: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-theme="pixel"] .planner-header .theme-btn,
+  [data-theme="ghibli"] .planner-header .theme-btn,
+  [data-theme="cyberpunk"] .planner-header .theme-btn {
+    border: 1px solid rgba(22, 18, 31, 0.72) !important;
+    box-shadow: 0 1px 0 rgba(22, 18, 31, 0.24) !important;
+    opacity: 1 !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-btn .theme-icon,
+  [data-theme="ghibli"] .planner-header .theme-btn .theme-icon,
+  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-icon {
+    color: inherit !important;
+    display: block !important;
+    opacity: 1 !important;
+    stroke: currentColor !important;
+    stroke-width: 2.8 !important;
+    visibility: visible !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-pixel .theme-icon,
+  [data-theme="pixel"] .planner-header .theme-ghibli .theme-icon,
+  [data-theme="pixel"] .planner-header .theme-cyberpunk .theme-icon,
+  [data-theme="ghibli"] .planner-header .theme-pixel .theme-icon,
+  [data-theme="ghibli"] .planner-header .theme-ghibli .theme-icon,
+  [data-theme="ghibli"] .planner-header .theme-cyberpunk .theme-icon,
+  [data-theme="cyberpunk"] .planner-header .theme-pixel .theme-icon,
+  [data-theme="cyberpunk"] .planner-header .theme-ghibli .theme-icon,
+  [data-theme="cyberpunk"] .planner-header .theme-cyberpunk .theme-icon {
+    display: none !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-pixel .theme-mobile-mark,
+  [data-theme="pixel"] .planner-header .theme-ghibli .theme-mobile-mark,
+  [data-theme="pixel"] .planner-header .theme-cyberpunk .theme-mobile-mark,
+  [data-theme="ghibli"] .planner-header .theme-pixel .theme-mobile-mark,
+  [data-theme="ghibli"] .planner-header .theme-ghibli .theme-mobile-mark,
+  [data-theme="ghibli"] .planner-header .theme-cyberpunk .theme-mobile-mark,
+  [data-theme="cyberpunk"] .planner-header .theme-pixel .theme-mobile-mark,
+  [data-theme="cyberpunk"] .planner-header .theme-ghibli .theme-mobile-mark,
+  [data-theme="cyberpunk"] .planner-header .theme-cyberpunk .theme-mobile-mark {
+    display: inline-grid !important;
+    place-items: center;
+    color: inherit !important;
+    font-family: "IBM Plex Mono", monospace !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-cozy,
+  [data-theme="ghibli"] .planner-header .theme-cozy,
+  [data-theme="cyberpunk"] .planner-header .theme-cozy {
+    background: #fffdf6 !important;
+    color: #16121f !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-comic,
+  [data-theme="ghibli"] .planner-header .theme-comic,
+  [data-theme="cyberpunk"] .planner-header .theme-comic {
+    background: #ff3366 !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-scrapbook,
+  [data-theme="ghibli"] .planner-header .theme-scrapbook,
+  [data-theme="cyberpunk"] .planner-header .theme-scrapbook {
+    background: #f7e8cf !important;
+    color: #8a2d1f !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-pixel,
+  [data-theme="ghibli"] .planner-header .theme-pixel,
+  [data-theme="cyberpunk"] .planner-header .theme-pixel {
+    background: #161a23 !important;
+    border-color: #38e09a !important;
+    color: #38e09a !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-ghibli,
+  [data-theme="ghibli"] .planner-header .theme-ghibli,
+  [data-theme="cyberpunk"] .planner-header .theme-ghibli {
+    background: #fffdf6 !important;
+    border-color: #4f7a52 !important;
+    color: #4f7a52 !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-cyberpunk,
+  [data-theme="ghibli"] .planner-header .theme-cyberpunk,
+  [data-theme="cyberpunk"] .planner-header .theme-cyberpunk {
+    background: #170c2e !important;
+    border-color: #00f0ff !important;
+    color: #00f0ff !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-plant,
+  [data-theme="ghibli"] .planner-header .theme-plant,
+  [data-theme="cyberpunk"] .planner-header .theme-plant {
+    background: #dfeccc !important;
+    color: #315f2c !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-pink,
+  [data-theme="ghibli"] .planner-header .theme-pink,
+  [data-theme="cyberpunk"] .planner-header .theme-pink {
+    background: #ffe4f0 !important;
+    color: #b92e6f !important;
+  }
+
+  [data-theme="pixel"] .planner-header .theme-brutalist,
+  [data-theme="ghibli"] .planner-header .theme-brutalist,
+  [data-theme="cyberpunk"] .planner-header .theme-brutalist {
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+  }
+
+  [data-theme="pixel"] .planner-header .random-theme-btn,
+  [data-theme="ghibli"] .planner-header .random-theme-btn,
+  [data-theme="cyberpunk"] .planner-header .random-theme-btn {
+    background: linear-gradient(135deg, #ffe866, #73c3f4 48%, #ef4277) !important;
+    color: #0a0a0a !important;
   }
 }
 
