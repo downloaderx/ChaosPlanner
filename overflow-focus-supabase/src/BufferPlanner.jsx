@@ -42,7 +42,7 @@ const GUEST_SYNC_PROMPT_SNOOZE_KEY = "the-one-thing-guest-sync-prompt-snoozed-at
 const GUEST_SYNC_PROMPT_DELAY_MS = 2 * 60 * 1000;
 const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
-const REMOTE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const REMOTE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
 
 function clampPomodoroVolume(value) {
   const volume = Number(value);
@@ -180,6 +180,24 @@ function isMissingUserSettings(error) {
 
 function sortNewestFirst(a, b, field = "startedAt") {
   return new Date(b[field] || 0).getTime() - new Date(a[field] || 0).getTime();
+}
+
+function sortByProjectThenText(items) {
+  return [...items].sort((a, b) => {
+    const aTag = (a.projectTag || "").trim();
+    const bTag = (b.projectTag || "").trim();
+
+    if (aTag && !bTag) return -1;
+    if (!aTag && bTag) return 1;
+
+    const tagCompare = aTag.localeCompare(bTag, undefined, { sensitivity: "base", numeric: true });
+    if (tagCompare !== 0) return tagCompare;
+
+    const textCompare = (a.text || "").localeCompare(b.text || "", undefined, { sensitivity: "base", numeric: true });
+    if (textCompare !== 0) return textCompare;
+
+    return sortNewestFirst(a, b);
+  });
 }
 
 function isFinishedToday(item) {
@@ -372,6 +390,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const dailyGoalDraftDirty = dailyGoalDraftValue !== dailyGoal;
   const dailyGoalDraftCanSave = !dailyGoalLockedToday && dailyGoalDraftDirty;
   const breakUnlocked = pomodoroMode === "break";
+  const sortedThoughts = sortByProjectThenText(thoughts);
+  const sortedSetAside = sortByProjectThenText(setAside);
   const allVisibleItems = [...thoughts, ...setAside, ...(focus ? [focus] : []), ...log];
   const projectOptions = Array.from(new Set(allVisibleItems.map((item) => item.projectTag).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b)
@@ -845,29 +865,27 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       setDailyGoalChangedOn(remoteChangedOn);
     }
 
-    async function refreshVisibleRemoteData() {
-      if (document.visibilityState !== "visible") return;
-
+    async function refreshRemoteData() {
       try {
-        await Promise.all([loadItems({ enforceCap: false }), refreshDailyGoalSettings()]);
+        await Promise.all([loadItems(), refreshDailyGoalSettings()]);
       } catch (err) {
         // Background sync should not interrupt the current session.
       }
     }
 
     function handleVisibilityChange() {
-      if (document.visibilityState === "visible") refreshVisibleRemoteData();
+      if (document.visibilityState === "visible") refreshRemoteData();
     }
 
-    const intervalId = window.setInterval(refreshVisibleRemoteData, REMOTE_SYNC_INTERVAL_MS);
+    const intervalId = window.setInterval(refreshRemoteData, REMOTE_SYNC_INTERVAL_MS);
 
-    window.addEventListener("focus", refreshVisibleRemoteData);
+    window.addEventListener("focus", refreshRemoteData);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshVisibleRemoteData);
+      window.removeEventListener("focus", refreshRemoteData);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isGuest, loadItems, saveRemoteDailyGoalSettings, user.id]);
@@ -1502,15 +1520,16 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }
 
   function promote(item) {
+    if (focus && focus.id !== item.id) {
+      setError("The One Thing player is already busy. Finish it or move it Later before choosing another task.");
+      return;
+    }
+
     runMutation(async () => {
       const now = new Date().toISOString();
 
       if (isGuest) {
         const items = readGuestItems().map((localItem) => {
-          if (focus && localItem.id === focus.id) {
-            return { ...localItem, column: "log", finished_at: now };
-          }
-
           if (localItem.id === item.id) {
             return { ...localItem, column: "focus", started_at: now, finished_at: null };
           }
@@ -1520,16 +1539,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         writeGuestItems(items);
         await loadItems();
         return;
-      }
-
-      if (focus) {
-        const { error: logError } = await supabase
-          .from("items")
-          .update({ column: "log", finished_at: now })
-          .eq("id", focus.id)
-          .eq("user_id", user.id);
-
-        if (logError) throw logError;
       }
 
       const { error: focusError } = await supabase
@@ -2095,7 +2104,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 Nothing parked here. Good. Jot down anything that pops up - you don't have to act on it yet.
               </p>
             ) : (
-              thoughts.map((item) => (
+              sortedThoughts.map((item) => (
                 <div key={item.id} className="bp-card sticky-note" style={{ transform: `rotate(${item.rot}deg)` }}>
                   <div className="item-copy">
                     {renderEditableItemCopy(item)}
@@ -2107,7 +2116,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     className="bp-thought-btn promote-btn"
                     title="Focus in The One Thing player"
                     aria-label={`Move ${item.text} to The One Thing player`}
-                    disabled={busy}
+                    disabled={busy || Boolean(focus)}
                   >
                     <Play size={13} />
                   </button>
@@ -2145,7 +2154,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             {setAside.length === 0 ? (
               <p className="muted roomy">Empty for now. Once you have more than {ACTIVE_CAP} live thoughts, the older ones will rest here.</p>
             ) : (
-              setAside.map((item) => (
+              sortedSetAside.map((item) => (
                 <div key={item.id} className="bp-aside-row">
                   <div className="item-copy">
                     {renderEditableItemCopy(item)}
@@ -2317,17 +2326,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           <div className="panel panel-white log-panel">
             <div className="log-title-row">
               <h3>Cleared today</h3>
-              <button
-                type="button"
-                className="archive-toggle"
-                onClick={() => setArchiveOpen((open) => !open)}
-                aria-expanded={archiveOpen}
-                aria-controls="archive-log"
-              >
-                Archive
-                <span className="archive-switch" aria-hidden="true" />
-                <ChevronDown size={14} />
-              </button>
             </div>
             <div className="daily-goal">
               <div className="daily-goal-row">
@@ -2540,6 +2538,20 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                   })}
                 </div>
               )}
+            </div>
+
+            <div className="archive-toolbar">
+              <button
+                type="button"
+                className="archive-toggle"
+                onClick={() => setArchiveOpen((open) => !open)}
+                aria-expanded={archiveOpen}
+                aria-controls="archive-log"
+              >
+                Archive
+                <span className="archive-switch" aria-hidden="true" />
+                <ChevronDown size={14} />
+              </button>
             </div>
 
             {archiveOpen && (

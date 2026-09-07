@@ -3066,6 +3066,12 @@ button.project-chip {
   transform: rotate(180deg);
 }
 
+.archive-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 .daily-goal {
   display: grid;
   gap: 8px;
@@ -6724,10 +6730,11 @@ button.project-chip {
   }
 
   .auth-gallery-shot img {
-    width: 100%;
-    height: auto;
-    max-height: 100%;
-    object-fit: contain;
+    width: 118%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
     object-position: center top;
   }
 
