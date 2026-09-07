@@ -2498,28 +2498,44 @@ input:disabled {
 }
 
 .project-chip {
+  --project-chip-bg: var(--chip-bg);
+  --project-chip-border: var(--chip-border);
+  --project-chip-text: var(--accent);
   width: fit-content;
   display: inline-flex;
   align-items: center;
   gap: 3px;
   margin: 10px 0 0 8px;
-  border: 1px solid var(--chip-border);
-  background: var(--chip-bg);
+  border: 1px solid var(--project-chip-border);
+  background: var(--project-chip-bg);
   border-radius: 999px;
   padding: 3px 7px;
-  color: var(--accent);
+  color: var(--project-chip-text);
   font-size: 11px;
   line-height: 1.2;
   font-weight: 700;
   text-align: left;
   vertical-align: middle;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--project-chip-border) 28%, transparent);
 }
 
 button.project-chip {
   cursor: pointer;
 }
 
+button.project-chip.editable:hover {
+  filter: saturate(1.08) brightness(0.98);
+}
+
+button.project-chip.editable:focus-visible {
+  outline: 2px solid var(--project-chip-border);
+  outline-offset: 2px;
+}
+
 .add-project-chip {
+  --project-chip-bg: var(--chip-bg);
+  --project-chip-border: var(--chip-border);
+  --project-chip-text: var(--accent);
   color: var(--accent);
   font-weight: 600;
   opacity: 0.82;

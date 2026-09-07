@@ -43,6 +43,16 @@ const GUEST_SYNC_PROMPT_DELAY_MS = 2 * 60 * 1000;
 const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
 const REMOTE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+const PROJECT_TAG_PALETTE = [
+  { bg: "#ffe3e0", border: "#ef8f86", text: "#8c2d28" },
+  { bg: "#fff0bf", border: "#d6a934", text: "#684b00" },
+  { bg: "#dff6dd", border: "#74b96e", text: "#245b25" },
+  { bg: "#d7f2f0", border: "#5fb6b1", text: "#145f5c" },
+  { bg: "#dcecff", border: "#76a8e8", text: "#214e8a" },
+  { bg: "#eadfff", border: "#a98ce4", text: "#4e3388" },
+  { bg: "#ffe0ef", border: "#e68ab4", text: "#8a2e5b" },
+  { bg: "#e7ead2", border: "#9eaa58", text: "#515920" },
+];
 
 function clampPomodoroVolume(value) {
   const volume = Number(value);
@@ -155,6 +165,26 @@ function prepareGuestItemsForInsert(items, userId, includeProjectTag = true) {
 
 function normalizeProjectTag(value) {
   return value.trim().replace(/^#+/, "").replace(/\s+/g, " ").slice(0, 40);
+}
+
+function getProjectTagColor(projectTag) {
+  const normalized = projectTag.trim().toLowerCase();
+  let hash = 0;
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash * 31 + normalized.charCodeAt(i)) % 9973;
+  }
+
+  return PROJECT_TAG_PALETTE[hash % PROJECT_TAG_PALETTE.length];
+}
+
+function getProjectTagStyle(projectTag) {
+  const color = getProjectTagColor(projectTag);
+  return {
+    "--project-chip-bg": color.bg,
+    "--project-chip-border": color.border,
+    "--project-chip-text": color.text,
+  };
 }
 
 function isMissingProjectTagColumn(error) {
@@ -1320,6 +1350,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           onClick={() => startProjectEdit(item)}
           disabled={busy || !projectTagAvailable}
           title="Edit project tag"
+          style={getProjectTagStyle(item.projectTag)}
         >
           #{item.projectTag}
         </button>
