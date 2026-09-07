@@ -4260,10 +4260,6 @@ button.project-chip.editable:focus-visible {
   line-height: 1;
 }
 
-.theme-mobile-mark {
-  display: none;
-}
-
 .theme-btn.active {
   transform: none;
   box-shadow: 0 2px 0 #16121f, inset 0 0 0 2px rgba(255, 255, 255, 0.42);
@@ -6775,21 +6771,13 @@ button.project-chip.editable:focus-visible {
   [data-theme="ghibli"] .planner-header .theme-btn .theme-icon,
   [data-theme="cyberpunk"] .planner-header .theme-btn .theme-icon,
   [data-theme="brutalist"] .planner-header .theme-btn .theme-icon {
-    display: none !important;
-  }
-
-  .planner-header .theme-btn .theme-mobile-mark,
-  [data-theme="pixel"] .planner-header .theme-btn .theme-mobile-mark,
-  [data-theme="ghibli"] .planner-header .theme-btn .theme-mobile-mark,
-  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-mobile-mark,
-  [data-theme="brutalist"] .planner-header .theme-btn .theme-mobile-mark {
-    display: inline-grid !important;
-    place-items: center;
-    color: inherit !important;
-    font-family: "IBM Plex Mono", monospace !important;
-    font-size: 12px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
+    display: block !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    flex: 0 0 18px !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
@@ -6891,26 +6879,6 @@ button.project-chip.editable:focus-visible {
     border: 1px solid rgba(22, 18, 31, 0.72) !important;
     box-shadow: 0 1px 0 rgba(22, 18, 31, 0.24) !important;
     opacity: 1 !important;
-  }
-
-  [data-theme="pixel"] .planner-header .theme-btn .theme-icon,
-  [data-theme="ghibli"] .planner-header .theme-btn .theme-icon,
-  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-icon {
-    display: none !important;
-  }
-
-  [data-theme="pixel"] .planner-header .theme-btn .theme-mobile-mark,
-  [data-theme="ghibli"] .planner-header .theme-btn .theme-mobile-mark,
-  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-mobile-mark {
-    display: inline-grid !important;
-    place-items: center;
-    color: inherit !important;
-    font-family: "IBM Plex Mono", monospace !important;
-    font-size: 12px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
-    opacity: 1 !important;
-    visibility: visible !important;
   }
 
   [data-theme="pixel"] .planner-header .theme-cozy,
@@ -7356,5 +7324,122 @@ button.project-chip.editable:focus-visible {
     width: 58px !important;
     height: 58px !important;
     min-height: 58px !important;
+  }
+}
+
+/* Final mobile theme icon repair: keep the real SVG icons visible in every theme. */
+@media (max-width: 640px) {
+  .planner-header .theme-switcher,
+  [data-theme="pixel"] .planner-header .theme-switcher,
+  [data-theme="ghibli"] .planner-header .theme-switcher,
+  [data-theme="cyberpunk"] .planner-header .theme-switcher,
+  [data-theme="brutalist"] .planner-header .theme-switcher {
+    display: grid !important;
+    grid-template-columns: repeat(5, 38px) !important;
+    grid-auto-rows: 38px !important;
+    gap: 6px !important;
+    width: calc((38px * 5) + (6px * 4)) !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .planner-header .theme-btn,
+  [data-theme="pixel"] .planner-header .theme-btn,
+  [data-theme="ghibli"] .planner-header .theme-btn,
+  [data-theme="cyberpunk"] .planner-header .theme-btn,
+  [data-theme="brutalist"] .planner-header .theme-btn {
+    display: grid !important;
+    place-items: center !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .planner-header .theme-btn .theme-label,
+  [data-theme="pixel"] .planner-header .theme-btn .theme-label,
+  [data-theme="ghibli"] .planner-header .theme-btn .theme-label,
+  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-label,
+  [data-theme="brutalist"] .planner-header .theme-btn .theme-label {
+    display: none !important;
+  }
+
+  .planner-header .theme-btn .theme-icon,
+  [data-theme="pixel"] .planner-header .theme-btn .theme-icon,
+  [data-theme="ghibli"] .planner-header .theme-btn .theme-icon,
+  [data-theme="cyberpunk"] .planner-header .theme-btn .theme-icon,
+  [data-theme="brutalist"] .planner-header .theme-btn .theme-icon {
+    display: block !important;
+    width: 18px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .planner-header .theme-cozy {
+    background: #fffdf6 !important;
+    border-color: #16121f !important;
+    color: #16121f !important;
+  }
+
+  .planner-header .theme-comic {
+    background: #ff3366 !important;
+    border-color: #16121f !important;
+    color: #ffffff !important;
+  }
+
+  .planner-header .theme-scrapbook {
+    background: #f7e8cf !important;
+    border-color: #8a2d1f !important;
+    color: #8a2d1f !important;
+  }
+
+  .planner-header .theme-pixel {
+    background: #161a23 !important;
+    border-color: #38e09a !important;
+    color: #38e09a !important;
+  }
+
+  .planner-header .theme-ghibli {
+    background: #fffdf6 !important;
+    border-color: #4f7a52 !important;
+    color: #4f7a52 !important;
+  }
+
+  .planner-header .theme-cyberpunk {
+    background: #170c2e !important;
+    border-color: #00f0ff !important;
+    color: #00f0ff !important;
+  }
+
+  .planner-header .theme-plant {
+    background: #dfeccc !important;
+    border-color: #315f2c !important;
+    color: #315f2c !important;
+  }
+
+  .planner-header .theme-pink {
+    background: #ffe4f0 !important;
+    border-color: #b92e6f !important;
+    color: #b92e6f !important;
+  }
+
+  .planner-header .theme-brutalist {
+    background: #ffffff !important;
+    border-color: #0a0a0a !important;
+    color: #0a0a0a !important;
+  }
+
+  .planner-header .random-theme-btn {
+    background: linear-gradient(135deg, #ffe866, #73c3f4 48%, #ef4277) !important;
+    border-color: #16121f !important;
+    color: #0a0a0a !important;
   }
 }

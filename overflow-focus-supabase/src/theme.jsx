@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { Cloud, Cpu, Gamepad2, Heart, Leaf, Scissors, Shuffle, Sparkles, Sprout, Square } from "lucide-react";
 
 export const THEMES = [
-  { id: "cozy", label: "Cozy", Icon: Leaf, mobileMark: "Co" },
-  { id: "comic", label: "Comic", Icon: Sparkles, mobileMark: "Cm" },
-  { id: "scrapbook", label: "Scrapbook", Icon: Scissors, mobileMark: "Sc" },
-  { id: "pixel", label: "Pixel", Icon: Gamepad2, mobileMark: "Px" },
-  { id: "ghibli", label: "Ghibli", Icon: Cloud, mobileMark: "Gh" },
-  { id: "cyberpunk", label: "Cyberpunk", Icon: Cpu, mobileMark: "Cy" },
-  { id: "plant", label: "Plant", Icon: Sprout, mobileMark: "Pl" },
-  { id: "pink", label: "Pink", Icon: Heart, mobileMark: "Pk" },
-  { id: "brutalist", label: "Brutalist", Icon: Square, mobileMark: "Br" },
+  { id: "cozy", label: "Cozy", Icon: Leaf },
+  { id: "comic", label: "Comic", Icon: Sparkles },
+  { id: "scrapbook", label: "Scrapbook", Icon: Scissors },
+  { id: "pixel", label: "Pixel", Icon: Gamepad2 },
+  { id: "ghibli", label: "Ghibli", Icon: Cloud },
+  { id: "cyberpunk", label: "Cyberpunk", Icon: Cpu },
+  { id: "plant", label: "Plant", Icon: Sprout },
+  { id: "pink", label: "Pink", Icon: Heart },
+  { id: "brutalist", label: "Brutalist", Icon: Square },
 ];
 
 const STORAGE_KEY = "overflow-focus-theme";
@@ -72,7 +72,6 @@ export function ThemeSwitcher({ theme, onChange }) {
             title={`${t.label} theme`}
           >
             <Icon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
-            <span className="theme-mobile-mark" aria-hidden="true">{t.mobileMark}</span>
             <span className="theme-label">{t.label}</span>
           </button>
         );
@@ -86,7 +85,6 @@ export function ThemeSwitcher({ theme, onChange }) {
         title="Random theme"
       >
         <Shuffle className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
-        <span className="theme-mobile-mark" aria-hidden="true">R</span>
         <span className="theme-label">Random</span>
       </button>
     </div>
