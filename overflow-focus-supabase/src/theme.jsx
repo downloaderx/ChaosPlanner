@@ -1,5 +1,21 @@
 import { useEffect, useState } from "react";
-import { Cloud, Cpu, Gamepad2, Heart, Leaf, Scissors, Shuffle, Sparkles, Sprout, Square } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Cloud,
+  Cpu,
+  Gamepad2,
+  Heart,
+  Leaf,
+  Rocket,
+  Scissors,
+  Shuffle,
+  Sparkles,
+  Sprout,
+  Square,
+  Waves,
+  Wind,
+} from "lucide-react";
 
 export const THEMES = [
   { id: "cozy", label: "Cozy", Icon: Leaf },
@@ -11,6 +27,9 @@ export const THEMES = [
   { id: "plant", label: "Plant", Icon: Sprout },
   { id: "pink", label: "Pink", Icon: Heart },
   { id: "brutalist", label: "Brutalist", Icon: Square },
+  { id: "seafoam", label: "Seafoam", Icon: Waves },
+  { id: "airship", label: "Airship", Icon: Wind },
+  { id: "cosmos", label: "Cosmos", Icon: Rocket },
 ];
 
 const STORAGE_KEY = "overflow-focus-theme";
@@ -50,43 +69,71 @@ export function useTheme() {
 }
 
 export function ThemeSwitcher({ theme, onChange }) {
+  const [open, setOpen] = useState(false);
+  const activeTheme = THEMES.find((item) => item.id === theme) || THEMES[0];
+  const ActiveIcon = activeTheme.Icon;
+
   function randomizeTheme() {
     const availableThemes = THEMES.filter((t) => t.id !== theme);
     const nextTheme = availableThemes[Math.floor(Math.random() * availableThemes.length)] || THEMES[0];
     onChange(nextTheme.id);
+    setOpen(false);
+  }
+
+  function pickTheme(themeId) {
+    onChange(themeId);
+    setOpen(false);
   }
 
   return (
-    <div className="theme-switcher" role="group" aria-label="Choose app theme">
-      {THEMES.map((t) => {
-        const Icon = t.Icon;
-
-        return (
-          <button
-            key={t.id}
-            type="button"
-            className={`theme-btn theme-${t.id}${theme === t.id ? " active" : ""}`}
-            onClick={() => onChange(t.id)}
-            aria-pressed={theme === t.id}
-            aria-label={`${t.label} theme`}
-            title={`${t.label} theme`}
-          >
-            <Icon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
-            <span className="theme-label">{t.label}</span>
-          </button>
-        );
-      })}
-
+    <div className={`theme-menu${open ? " open" : ""}`}>
       <button
         type="button"
-        className="theme-btn random-theme-btn"
-        onClick={randomizeTheme}
-        aria-label="Random theme"
-        title="Random theme"
+        className={`theme-btn theme-menu-trigger theme-${activeTheme.id}`}
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label="Choose app theme"
+        title="Choose app theme"
       >
-        <Shuffle className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
-        <span className="theme-label">Random</span>
+        <ActiveIcon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+        <span className="theme-label">{activeTheme.label}</span>
+        <ChevronDown className="theme-menu-chevron" aria-hidden="true" size={14} strokeWidth={2.4} />
       </button>
+
+      {open && (
+        <div className="theme-menu-popover" role="group" aria-label="Choose app theme">
+          {THEMES.map((t) => {
+            const Icon = t.Icon;
+
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className={`theme-btn theme-menu-option theme-${t.id}${theme === t.id ? " active" : ""}`}
+                onClick={() => pickTheme(t.id)}
+                aria-pressed={theme === t.id}
+                aria-label={`${t.label} theme`}
+                title={`${t.label} theme`}
+              >
+                <Icon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+                <span className="theme-label">{t.label}</span>
+                <Check className="theme-menu-check" aria-hidden="true" size={13} strokeWidth={2.6} />
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            className="theme-btn theme-menu-option random-theme-btn"
+            onClick={randomizeTheme}
+            aria-label="Random theme"
+            title="Random theme"
+          >
+            <Shuffle className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+            <span className="theme-label">Random</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -405,7 +405,7 @@ export default function Auth({
                 <div className="auth-gallery-message auth-gallery-themes">
                   <Sparkles size={19} aria-hidden="true" />
                   <strong>Lots of moods, same simple system.</strong>
-                  <p>Pick the surface that matches your brain today. The palette includes cozy, comic, scrapbook, pixel, ghibli, cyberpunk, plant, pink, and brutalist modes.</p>
+                  <p>Pick the surface that matches your brain today. The palette includes soft, playful, dreamy, and high-contrast modes.</p>
                   <div className="auth-theme-preview" aria-hidden="true">
                     {THEMES.map((item) => {
                       const Icon = item.Icon;
