@@ -8313,3 +8313,99 @@ button.project-chip.editable:focus-visible {
     z-index: 10002 !important;
   }
 }
+
+/* Final menu and mobile viewport fix. Account menu must sit above theme menu. */
+.header-account-menu,
+.account-menu {
+  position: relative !important;
+  z-index: 12000 !important;
+  isolation: isolate !important;
+}
+
+.account-dropdown,
+.header-account-menu .account-dropdown {
+  z-index: 12001 !important;
+}
+
+.theme-menu,
+.planner-header .theme-menu {
+  z-index: 11000 !important;
+}
+
+.theme-menu-popover,
+.planner-header .theme-menu-popover {
+  z-index: 11001 !important;
+}
+
+@supports (min-height: 100dvh) {
+  .loading-screen,
+  .auth-shell,
+  .planner-shell {
+    min-height: 100dvh;
+  }
+}
+
+@media (max-width: 640px) {
+  html,
+  body,
+  #root,
+  .loading-screen,
+  .auth-shell,
+  .planner-shell {
+    min-height: 100svh !important;
+    min-height: 100dvh !important;
+  }
+
+  .loading-screen,
+  .auth-shell,
+  .planner-shell {
+    background-attachment: scroll, scroll !important;
+    background-size: 100% 100%, cover !important;
+  }
+
+  [data-theme="cosmos"] {
+    --text: #ffffff;
+    --text-soft: #f6f4ff;
+    --muted-text: #e8e8ff;
+    --muted: #dad8ff;
+    --surface: #101638;
+    --surface-soft: #1a2150;
+    --note-bg: #11183d;
+    --note-border: #c3c8ff;
+    --chip-bg: #20275b;
+    --border: #c3c8ff;
+    --border-dashed: #b6bcff;
+    --bg-overlay: rgba(8, 12, 30, 0.12);
+  }
+
+  [data-theme="cosmos"] .panel-white,
+  [data-theme="cosmos"] .panel-aside,
+  [data-theme="cosmos"] .log-panel,
+  [data-theme="cosmos"] .header-copy {
+    background: rgba(16, 22, 56, 0.92) !important;
+    color: #ffffff !important;
+    border-color: rgba(195, 200, 255, 0.78) !important;
+  }
+
+  [data-theme="cosmos"] .thought-card,
+  [data-theme="cosmos"] .later-card,
+  [data-theme="cosmos"] .done-item,
+  [data-theme="cosmos"] .priority-suggestion {
+    background: rgba(17, 24, 61, 0.94) !important;
+    color: #ffffff !important;
+    border-color: rgba(195, 200, 255, 0.72) !important;
+  }
+
+  [data-theme="cosmos"] input,
+  [data-theme="cosmos"] textarea,
+  [data-theme="cosmos"] select {
+    background: rgba(9, 14, 36, 0.94) !important;
+    color: #ffffff !important;
+    border-color: rgba(195, 200, 255, 0.72) !important;
+  }
+
+  [data-theme="cosmos"] input::placeholder,
+  [data-theme="cosmos"] textarea::placeholder {
+    color: rgba(255, 255, 255, 0.72) !important;
+  }
+}
