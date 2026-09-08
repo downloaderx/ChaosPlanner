@@ -2665,7 +2665,7 @@ button.project-chip.editable:focus-visible {
 
 .priority-wheel {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr);
+  grid-template-columns: 148px minmax(0, 1fr);
   align-items: center;
   gap: 14px;
   border: 1px solid color-mix(in srgb, var(--chip-border) 78%, transparent);
@@ -2678,21 +2678,21 @@ button.project-chip.editable:focus-visible {
 
 .priority-wheel-stage {
   position: relative;
-  width: 106px;
-  height: 106px;
+  width: 138px;
+  height: 138px;
   display: grid;
   place-items: center;
 }
 
 .priority-wheel-disc {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 126px;
+  height: 126px;
   border: 2px solid var(--accent);
   border-radius: 50%;
   box-shadow:
     inset 0 0 0 6px color-mix(in srgb, var(--surface) 64%, transparent),
-    inset 0 0 0 28px color-mix(in srgb, var(--surface) 14%, transparent),
+    inset 0 0 0 38px color-mix(in srgb, var(--surface) 14%, transparent),
     0 8px 18px -12px rgba(0, 0, 0, 0.48);
   transition: transform 0.98s cubic-bezier(0.12, 0.74, 0.2, 1);
 }
@@ -2700,22 +2700,32 @@ button.project-chip.editable:focus-visible {
 .priority-wheel-disc::after {
   content: "";
   position: absolute;
-  inset: 35px;
+  inset: 46px;
   border: 2px solid var(--accent);
   border-radius: 50%;
   background: var(--surface);
   box-shadow: 0 2px 8px -6px rgba(0, 0, 0, 0.45);
 }
 
-.priority-wheel-disc span {
+.priority-wheel-marker {
   position: absolute;
   left: 50%;
-  top: 9px;
-  width: 4px;
-  height: 12px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  transform-origin: 50% 39px;
+  transform-origin: 50% 53px;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface) 54%, transparent);
+  display: grid;
+  place-items: center;
+}
+
+.priority-wheel-segment-icon {
+  position: absolute;
+  left: 50%;
+  color: color-mix(in srgb, var(--surface) 88%, white);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.18));
+  pointer-events: none;
 }
 
 .priority-wheel-disc.spinning {
@@ -2725,8 +2735,8 @@ button.project-chip.editable:focus-visible {
 .priority-wheel-center {
   position: absolute;
   z-index: 2;
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border: 1px solid var(--chip-border);
   border-radius: 50%;
   background: color-mix(in srgb, var(--surface) 92%, white);
@@ -2734,7 +2744,7 @@ button.project-chip.editable:focus-visible {
   display: grid;
   place-items: center;
   font-family: var(--font-heading);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2750,7 +2760,7 @@ button.project-chip.editable:focus-visible {
 .priority-wheel-pointer {
   position: absolute;
   top: -2px;
-  right: 12px;
+  right: 21px;
   width: 0;
   height: 0;
   border-left: 9px solid transparent;
