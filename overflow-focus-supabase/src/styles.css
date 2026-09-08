@@ -6036,21 +6036,21 @@ button.project-chip.editable:focus-visible {
   --bg: #10193b;
   --bg-dot: #26345f;
   --text: #f3f4ff;
-  --text-soft: #d8dcff;
-  --border: #8fa1e9;
+  --text-soft: #dfe3ff;
+  --border: #a9b5ff;
   --border-dashed: #a9acee;
-  --surface: #f7f5ff;
-  --surface-soft: #ebe9ff;
-  --muted-text: #7d78a8;
-  --muted: #9b96c3;
-  --muted-light: #c4c0df;
-  --accent: #8d86e8;
-  --accent-contrast: #fffefa;
+  --surface: #1a2048;
+  --surface-soft: #252b5f;
+  --muted-text: #c8cdfa;
+  --muted: #b5b8e8;
+  --muted-light: #d1d2f7;
+  --accent: #a99cff;
+  --accent-contrast: #151936;
   --danger: #d86f99;
   --danger-soft: #b95780;
-  --note-bg: #fff2cf;
-  --note-border: #d8c491;
-  --chip-bg: #efeaff;
+  --note-bg: #242a5c;
+  --note-border: #a9b5ff;
+  --chip-bg: #30366c;
   --chip-border: #bdb5f2;
   --focus-bg: #25295f;
   --focus-text: #fffefa;
@@ -6059,7 +6059,7 @@ button.project-chip.editable:focus-visible {
   --focus-time: #ffe4a4;
   --focus-border: #9ca8f0;
   --dot-inactive: #747ec3;
-  --heading-muted: #d6d3ff;
+  --heading-muted: #e1ddff;
   --btn-outline-green: #bdb5f2;
   --scrollbar: #9ca8f0;
   --shadow-tint: #12162f;
@@ -8048,12 +8048,23 @@ button.project-chip.editable:focus-visible {
 [data-theme="brutalist"] .planner-header .theme-menu {
   position: relative !important;
   display: inline-flex !important;
-  align-items: flex-start !important;
+  align-items: center !important;
   justify-content: flex-start !important;
+  gap: 8px !important;
   width: auto !important;
   max-width: 100% !important;
   min-height: 0 !important;
   overflow: visible !important;
+}
+
+.theme-menu-title {
+  color: var(--text-soft);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .theme-menu-trigger,
@@ -8095,7 +8106,8 @@ button.project-chip.editable:focus-visible {
 .theme-menu-popover {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  right: auto;
+  left: 0;
   z-index: 40;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8157,18 +8169,33 @@ button.project-chip.editable:focus-visible {
     min-height: 0 !important;
   }
 
+  .planner-header .theme-menu {
+    gap: 7px !important;
+  }
+
+  .planner-header .theme-menu-title {
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 38px !important;
+    color: var(--text-soft) !important;
+    font-size: 12px !important;
+  }
+
   .planner-header .theme-menu-trigger,
   [data-theme="pixel"] .planner-header .theme-menu-trigger,
   [data-theme="ghibli"] .planner-header .theme-menu-trigger,
   [data-theme="cyberpunk"] .planner-header .theme-menu-trigger,
   [data-theme="brutalist"] .planner-header .theme-menu-trigger {
-    width: auto !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 44px !important;
     min-width: 44px !important;
-    max-width: 150px !important;
+    max-width: 44px !important;
     height: 38px !important;
     min-height: 38px !important;
     max-height: 38px !important;
-    padding: 0 10px !important;
+    padding: 0 !important;
+    gap: 0 !important;
   }
 
   .planner-header .theme-menu-trigger .theme-icon,
@@ -8189,12 +8216,23 @@ button.project-chip.editable:focus-visible {
     display: none !important;
   }
 
+  .planner-header .theme-menu-trigger .theme-menu-chevron,
+  [data-theme="pixel"] .planner-header .theme-menu-trigger .theme-menu-chevron,
+  [data-theme="ghibli"] .planner-header .theme-menu-trigger .theme-menu-chevron,
+  [data-theme="cyberpunk"] .planner-header .theme-menu-trigger .theme-menu-chevron,
+  [data-theme="brutalist"] .planner-header .theme-menu-trigger .theme-menu-chevron {
+    display: none !important;
+  }
+
   .theme-menu-popover {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top));
+    bottom: auto;
     right: auto;
-    left: 0;
+    left: max(12px, env(safe-area-inset-left));
     grid-template-columns: 1fr;
-    width: min(230px, calc(100vw - 28px));
-    max-height: min(430px, 68vh);
+    width: min(230px, calc(100vw - 24px));
+    max-height: min(430px, calc(100vh - 24px));
   }
 
   .planner-header .theme-menu-option,

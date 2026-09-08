@@ -87,6 +87,7 @@ export function ThemeSwitcher({ theme, onChange }) {
 
   return (
     <div className={`theme-menu${open ? " open" : ""}`}>
+      <span className="theme-menu-title">Theme</span>
       <button
         type="button"
         className={`theme-btn theme-menu-trigger theme-${activeTheme.id}`}
