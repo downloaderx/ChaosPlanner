@@ -2340,7 +2340,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                               className="priority-wheel-segment-icon"
                               size={13}
                               strokeWidth={2.3}
-                              style={{ transform: `translateX(-50%) rotate(${-rotation}deg)` }}
+                              style={{ transform: `rotate(${-rotation}deg)` }}
                             />
                           </span>
                         );
