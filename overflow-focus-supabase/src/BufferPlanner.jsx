@@ -23,12 +23,6 @@ import {
   Pencil,
   FolderOpen,
   Shuffle,
-  Star,
-  Sun,
-  Heart,
-  Home,
-  BookOpen,
-  Leaf,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -60,7 +54,6 @@ const PROJECT_TAG_PALETTE = [
   { bg: "#ffe0ef", border: "#e68ab4", text: "#8a2e5b" },
   { bg: "#e7ead2", border: "#9eaa58", text: "#515920" },
 ];
-const WHEEL_SEGMENT_ICONS = [Lightbulb, Star, Heart, Sun, Leaf, FolderOpen, BookOpen, Home, Music2, Trophy];
 
 function clampPomodoroVolume(value) {
   const volume = Number(value);
@@ -213,12 +206,11 @@ function buildWheelGradient(slices) {
 
 function getWheelSlices(items) {
   const sample = items.length ? items.slice(0, 10) : [];
-  return sample.map((item, index) => {
+  return sample.map((item) => {
     const color = getProjectTagColor(item.projectTag || item.sourceColumn);
     return {
       ...color,
       label: item.projectTag || item.sourceColumn,
-      Icon: WHEEL_SEGMENT_ICONS[index % WHEEL_SEGMENT_ICONS.length],
     };
   });
 }
@@ -2323,28 +2315,16 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                       style={{ transform: `rotate(${wheelAngle}deg)`, background: wheelGradient }}
                       aria-hidden="true"
                     >
-                      {(wheelSlices.length ? wheelSlices : PROJECT_TAG_PALETTE.slice(0, 6)).map((slice, index, slices) => {
-                        const Icon = slice.Icon || WHEEL_SEGMENT_ICONS[index % WHEEL_SEGMENT_ICONS.length];
-                        const rotation = Math.round((360 / slices.length) * index);
-
-                        return (
-                          <span
-                            key={`${slice.label || "empty"}-${index}`}
-                            className="priority-wheel-marker"
-                            style={{
-                              transform: `rotate(${rotation}deg)`,
-                              background: slice.text,
-                            }}
-                          >
-                            <Icon
-                              className="priority-wheel-segment-icon"
-                              size={13}
-                              strokeWidth={2.3}
-                              style={{ transform: `rotate(${-rotation}deg)` }}
-                            />
-                          </span>
-                        );
-                      })}
+                      {(wheelSlices.length ? wheelSlices : PROJECT_TAG_PALETTE.slice(0, 6)).map((slice, index, slices) => (
+                        <span
+                          key={`${slice.label || "empty"}-${index}`}
+                          className="priority-wheel-marker"
+                          style={{
+                            transform: `rotate(${Math.round((360 / slices.length) * index)}deg)`,
+                            background: slice.text,
+                          }}
+                        />
+                      ))}
                     </div>
                     <button
                       type="button"
