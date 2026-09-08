@@ -8275,3 +8275,41 @@ button.project-chip.editable:focus-visible {
     color: #f4e8ff !important;
   }
 }
+
+/* Final theme overlay lock: keep mobile theme menu above planner panels. */
+.planner-header,
+.planner-header .header-row,
+.planner-header .header-controls {
+  position: relative !important;
+  z-index: 10000 !important;
+  overflow: visible !important;
+}
+
+.bp-main {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.theme-menu,
+.planner-header .theme-menu {
+  z-index: 10001 !important;
+  isolation: isolate !important;
+}
+
+.theme-menu-popover,
+.planner-header .theme-menu-popover {
+  z-index: 10002 !important;
+}
+
+@media (max-width: 640px) {
+  .theme-menu-popover,
+  .planner-header .theme-menu-popover {
+    position: fixed !important;
+    top: max(12px, env(safe-area-inset-top)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: max(12px, env(safe-area-inset-left)) !important;
+    transform: none !important;
+    z-index: 10002 !important;
+  }
+}
