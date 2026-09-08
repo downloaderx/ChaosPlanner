@@ -2665,86 +2665,97 @@ button.project-chip.editable:focus-visible {
 
 .priority-wheel {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 116px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   border: 1px solid color-mix(in srgb, var(--chip-border) 78%, transparent);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-  padding: 10px;
+  background:
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 30%),
+    color-mix(in srgb, var(--surface) 76%, transparent);
+  padding: 12px;
 }
 
 .priority-wheel-stage {
   position: relative;
-  width: 78px;
-  height: 78px;
+  width: 106px;
+  height: 106px;
   display: grid;
   place-items: center;
 }
 
 .priority-wheel-disc {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   border: 2px solid var(--accent);
   border-radius: 50%;
-  background:
-    conic-gradient(
-      from 18deg,
-      color-mix(in srgb, var(--accent) 82%, white) 0 25%,
-      color-mix(in srgb, var(--chip-bg) 86%, white) 25% 50%,
-      color-mix(in srgb, var(--note-bg) 92%, white) 50% 75%,
-      color-mix(in srgb, var(--accent-contrast) 72%, var(--surface)) 75% 100%
-    );
-  box-shadow: inset 0 0 0 7px color-mix(in srgb, var(--surface) 56%, transparent), 0 6px 14px -10px rgba(0, 0, 0, 0.38);
+  box-shadow:
+    inset 0 0 0 6px color-mix(in srgb, var(--surface) 64%, transparent),
+    inset 0 0 0 28px color-mix(in srgb, var(--surface) 14%, transparent),
+    0 8px 18px -12px rgba(0, 0, 0, 0.48);
   transition: transform 0.98s cubic-bezier(0.12, 0.74, 0.2, 1);
 }
 
 .priority-wheel-disc::after {
   content: "";
   position: absolute;
-  inset: 27px;
+  inset: 35px;
   border: 2px solid var(--accent);
   border-radius: 50%;
   background: var(--surface);
+  box-shadow: 0 2px 8px -6px rgba(0, 0, 0, 0.45);
 }
 
 .priority-wheel-disc span {
   position: absolute;
   left: 50%;
-  top: 8px;
-  width: 2px;
-  height: 11px;
+  top: 9px;
+  width: 4px;
+  height: 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 72%, transparent);
-  transform-origin: 50% 28px;
-}
-
-.priority-wheel-disc span:nth-child(2) {
-  transform: rotate(90deg);
-}
-
-.priority-wheel-disc span:nth-child(3) {
-  transform: rotate(180deg);
-}
-
-.priority-wheel-disc span:nth-child(4) {
-  transform: rotate(270deg);
+  transform-origin: 50% 39px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface) 54%, transparent);
 }
 
 .priority-wheel-disc.spinning {
   filter: saturate(1.12);
 }
 
+.priority-wheel-center {
+  position: absolute;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--chip-border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 92%, white);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 12px -10px rgba(0, 0, 0, 0.55);
+}
+
+.priority-wheel-center:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .priority-wheel-pointer {
   position: absolute;
-  top: -1px;
-  right: 4px;
+  top: -2px;
+  right: 12px;
   width: 0;
   height: 0;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-top: 13px solid var(--accent);
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 16px solid var(--accent);
   filter: drop-shadow(0 1px 0 var(--surface));
 }
 
@@ -2770,6 +2781,24 @@ button.project-chip.editable:focus-visible {
   line-height: 1.35;
 }
 
+.priority-wheel-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.priority-wheel-tag {
+  border: 1px solid var(--project-chip-border);
+  border-radius: 999px;
+  background: var(--project-chip-bg);
+  color: var(--project-chip-text);
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .priority-wheel-spin {
   width: fit-content;
   min-height: 30px;
@@ -2793,13 +2822,26 @@ button.project-chip.editable:focus-visible {
 
 .priority-wheel-result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   border: 1px solid var(--accent);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--note-bg) 86%, var(--surface));
+  background:
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34%),
+    color-mix(in srgb, var(--note-bg) 88%, var(--surface));
   padding: 10px;
+}
+
+.priority-wheel-result-icon {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--chip-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--chip-bg) 84%, transparent);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
 }
 
 .priority-wheel-result-copy {

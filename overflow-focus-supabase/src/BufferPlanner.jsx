@@ -188,6 +188,33 @@ function getProjectTagStyle(projectTag) {
   };
 }
 
+function buildWheelGradient(slices) {
+  const visualSlices = slices.length
+    ? slices
+    : PROJECT_TAG_PALETTE.slice(0, 6).map((color, index) => ({ ...color, label: `slot ${index + 1}` }));
+  const sliceSize = 360 / visualSlices.length;
+  const stops = visualSlices
+    .map((slice, index) => {
+      const start = Math.round(index * sliceSize * 10) / 10;
+      const end = Math.round((index + 1) * sliceSize * 10) / 10;
+      return `${slice.bg} ${start}deg ${end}deg`;
+    })
+    .join(", ");
+
+  return `conic-gradient(from 18deg, ${stops})`;
+}
+
+function getWheelSlices(items) {
+  const sample = items.length ? items.slice(0, 10) : [];
+  return sample.map((item) => {
+    const color = getProjectTagColor(item.projectTag || item.sourceColumn);
+    return {
+      ...color,
+      label: item.projectTag || item.sourceColumn,
+    };
+  });
+}
+
 function isMissingProjectTagColumn(error) {
   return (
     error?.code === "42703" ||
@@ -440,6 +467,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     ...sortedThoughts.map((item) => ({ ...item, sourceColumn: "live" })),
     ...sortedSetAside.map((item) => ({ ...item, sourceColumn: "later" })),
   ];
+  const wheelSlices = getWheelSlices(wheelItems);
+  const wheelGradient = buildWheelGradient(wheelSlices);
+  const wheelLegend = Array.from(new Set(wheelItems.map((item) => item.projectTag || item.sourceColumn))).slice(0, 4);
   const allVisibleItems = [...thoughts, ...setAside, ...(focus ? [focus] : []), ...log];
   const projectOptions = Array.from(new Set(allVisibleItems.map((item) => item.projectTag).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b)
@@ -2282,19 +2312,46 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                   <div className="priority-wheel-stage">
                     <div
                       className={wheelSpinning ? "priority-wheel-disc spinning" : "priority-wheel-disc"}
-                      style={{ transform: `rotate(${wheelAngle}deg)` }}
+                      style={{ transform: `rotate(${wheelAngle}deg)`, background: wheelGradient }}
                       aria-hidden="true"
                     >
-                      <span />
-                      <span />
-                      <span />
-                      <span />
+                      {(wheelSlices.length ? wheelSlices : PROJECT_TAG_PALETTE.slice(0, 6)).map((slice, index, slices) => (
+                        <span
+                          key={`${slice.label || "empty"}-${index}`}
+                          style={{
+                            transform: `rotate(${Math.round((360 / slices.length) * index)}deg)`,
+                            background: slice.text,
+                          }}
+                        />
+                      ))}
                     </div>
+                    <button
+                      type="button"
+                      className="priority-wheel-center"
+                      onClick={spinPriorityWheel}
+                      disabled={busy || wheelSpinning || wheelItems.length === 0}
+                      aria-label="Spin random task wheel"
+                    >
+                      spin
+                    </button>
                     <div className="priority-wheel-pointer" aria-hidden="true" />
                   </div>
                   <div className="priority-wheel-copy">
                     <h4>spin from live + later</h4>
                     <p>{wheelItems.length} possible task{wheelItems.length === 1 ? "" : "s"}. It picks, you still decide.</p>
+                    {wheelLegend.length > 0 && (
+                      <div className="priority-wheel-tags" aria-label="Wheel sources">
+                        {wheelLegend.map((label) => (
+                          <span
+                            key={label}
+                            className="priority-wheel-tag"
+                            style={getProjectTagStyle(label)}
+                          >
+                            {label === "live" || label === "later" ? label : `#${label}`}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <button
                       type="button"
                       className="priority-wheel-spin"
@@ -2309,8 +2366,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
                 {wheelResult && (
                   <div className="priority-wheel-result" role="status">
+                    <div className="priority-wheel-result-icon" aria-hidden="true">
+                      <FolderOpen size={18} />
+                    </div>
                     <div className="priority-wheel-result-copy">
-                      <span>{wheelResult.sourceColumn === "later" ? "from later" : "from live"}</span>
+                      <span>picked from {wheelResult.sourceColumn === "later" ? "later" : "live"}</span>
                       <strong>{wheelResult.text}</strong>
                       {wheelResult.projectTag && (
                         <span className="project-chip wheel-result-chip" style={getProjectTagStyle(wheelResult.projectTag)}>
