@@ -498,6 +498,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [periodFocusDraft, setPeriodFocusDraft] = useState(() => readStoredPeriodFocus(user.id).text);
   const [periodFocusMonthsDraft, setPeriodFocusMonthsDraft] = useState(() => readStoredPeriodFocus(user.id).months);
   const [periodFocusOpen, setPeriodFocusOpen] = useState(false);
+  const [periodFocusInfoOpen, setPeriodFocusInfoOpen] = useState(false);
   const [periodFocusSyncAvailable, setPeriodFocusSyncAvailable] = useState(true);
   const [appInfoOpen, setAppInfoOpen] = useState(false);
   const [goalInfoOpen, setGoalInfoOpen] = useState(false);
@@ -973,6 +974,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setPeriodFocusDraft(storedFocus.text);
     setPeriodFocusMonthsDraft(storedFocus.months);
     setPeriodFocusOpen(false);
+    setPeriodFocusInfoOpen(false);
   }, [user.id]);
 
   useEffect(() => {
@@ -2231,64 +2233,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   <div className="title-row">
     <span className="desktop-title-logo brand-mark" aria-hidden="true" />
     <h1>The One Thing</h1>
-    <div className="period-focus">
-      <button
-        type="button"
-        className={`period-focus-trigger${periodFocus.text ? " active" : ""}`}
-        onClick={() => {
-          setPeriodFocusDraft(periodFocus.text);
-          setPeriodFocusMonthsDraft(periodFocus.months);
-          setPeriodFocusOpen((open) => !open);
-        }}
-        aria-expanded={periodFocusOpen}
-        aria-label="Set period focus"
-        title="Set the main focus for this season"
-      >
-        <Target size={14} aria-hidden="true" />
-        <span>
-          <strong>{periodFocus.text || "period focus"}</strong>
-          <small>{periodFocus.text ? `${periodFocus.months} month priority` : "3-12 months"}</small>
-        </span>
-      </button>
-
-      {periodFocusOpen && (
-        <form className="period-focus-panel" onSubmit={savePeriodFocus}>
-          <label>
-            <span>Main focus</span>
-            <input
-              value={periodFocusDraft}
-              onChange={(event) => setPeriodFocusDraft(event.target.value)}
-              maxLength={80}
-              placeholder="what gets the long arc?"
-              autoFocus
-            />
-          </label>
-          <label>
-            <span>For</span>
-            <select
-              value={periodFocusMonthsDraft}
-              onChange={(event) => setPeriodFocusMonthsDraft(Number(event.target.value))}
-            >
-              {PERIOD_FOCUS_MONTH_OPTIONS.map((months) => (
-                <option key={months} value={months}>
-                  {months} months
-                </option>
-              ))}
-            </select>
-          </label>
-          <p>Detours are allowed. This is just the thing that keeps getting first claim.</p>
-          <div className="period-focus-actions">
-            <button type="button" onClick={clearPeriodFocus}>
-              clear
-            </button>
-            <button type="submit">
-              <Check size={13} aria-hidden="true" />
-              save
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
     <div className="title-actions">
       <button
         type="button"
@@ -2366,6 +2310,90 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           </div>
         )}
       </div>
+    </div>
+    <div className="period-focus">
+      <button
+        type="button"
+        className={`period-focus-trigger${periodFocus.text ? " active" : ""}`}
+        onClick={() => {
+          setPeriodFocusDraft(periodFocus.text);
+          setPeriodFocusMonthsDraft(periodFocus.months);
+          setPeriodFocusInfoOpen(false);
+          setPeriodFocusOpen((open) => !open);
+        }}
+        aria-expanded={periodFocusOpen}
+        aria-label="Set period focus"
+        title="Set the main focus for this season"
+      >
+        <Target size={14} aria-hidden="true" />
+        <span>
+          <strong>{periodFocus.text || "period focus"}</strong>
+          <small>{periodFocus.text ? `${periodFocus.months} month priority` : "3-12 months"}</small>
+        </span>
+      </button>
+      <button
+        type="button"
+        className="app-info-btn period-focus-info-btn"
+        onClick={() => {
+          setPeriodFocusOpen(false);
+          setPeriodFocusInfoOpen((open) => !open);
+        }}
+        aria-expanded={periodFocusInfoOpen}
+        aria-label="What period focus means"
+        title="What period focus means"
+      >
+        <Info size={13} aria-hidden="true" />
+      </button>
+
+      {periodFocusOpen && (
+        <form className="period-focus-panel" onSubmit={savePeriodFocus}>
+          <label>
+            <span>Main focus</span>
+            <input
+              value={periodFocusDraft}
+              onChange={(event) => setPeriodFocusDraft(event.target.value)}
+              maxLength={80}
+              placeholder="what gets the long arc?"
+              autoFocus
+            />
+          </label>
+          <label>
+            <span>For</span>
+            <select
+              value={periodFocusMonthsDraft}
+              onChange={(event) => setPeriodFocusMonthsDraft(Number(event.target.value))}
+            >
+              {PERIOD_FOCUS_MONTH_OPTIONS.map((months) => (
+                <option key={months} value={months}>
+                  {months} months
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>Detours are allowed. This is just the thing that keeps getting first claim.</p>
+          <div className="period-focus-actions">
+            <button type="button" onClick={clearPeriodFocus}>
+              clear
+            </button>
+            <button type="submit">
+              <Check size={13} aria-hidden="true" />
+              save
+            </button>
+          </div>
+        </form>
+      )}
+
+      {periodFocusInfoOpen && (
+        <div className="period-focus-info-popover" role="note">
+          <p>
+            A soft north star for the next few months. You can still detour when your brain needs air, but this stays
+            the one thing that gets first priority again.
+          </p>
+          <button type="button" onClick={() => setPeriodFocusInfoOpen(false)} aria-label="Close period focus info">
+            <X size={13} />
+          </button>
+        </div>
+      )}
     </div>
   </div>
   {appInfoOpen && (

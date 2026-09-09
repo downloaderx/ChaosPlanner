@@ -2026,6 +2026,8 @@ input:disabled {
   position: relative;
   z-index: 180;
   display: flex;
+  align-items: center;
+  gap: 6px;
   flex: 1 1 240px;
   justify-content: flex-end;
   min-width: 190px;
@@ -2035,6 +2037,8 @@ input:disabled {
 
 .period-focus-trigger {
   width: min(100%, 340px);
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 36px;
   border: 1px solid var(--chip-border);
   border-radius: 999px;
@@ -2155,6 +2159,47 @@ input:disabled {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
+}
+
+.period-focus-info-btn {
+  flex: 0 0 24px;
+}
+
+.period-focus-info-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 12500;
+  width: min(320px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  color: var(--text-soft);
+  padding: 12px 36px 12px 13px;
+  box-shadow: 0 18px 44px -26px rgba(31, 43, 34, 0.75);
+  backdrop-filter: blur(10px);
+}
+
+.period-focus-info-popover p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.period-focus-info-popover button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
 }
 
 .app-info-btn {
@@ -7057,11 +7102,12 @@ button.project-chip.editable:focus-visible {
   }
 
   .period-focus-trigger {
-    width: 100%;
+    width: auto;
     justify-content: flex-start;
   }
 
-  .period-focus-panel {
+  .period-focus-panel,
+  .period-focus-info-popover {
     position: fixed;
     top: max(12px, env(safe-area-inset-top));
     left: max(12px, env(safe-area-inset-left));
