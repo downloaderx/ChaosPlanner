@@ -24,6 +24,7 @@ import {
   FolderOpen,
   Shuffle,
   Target,
+  Quote,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -46,6 +47,9 @@ const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
 const REMOTE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
 const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
+const QUOTE_NOTES_STORAGE_PREFIX = "the-one-thing-quote-notes";
+const QUOTE_ROTATION_STORAGE_PREFIX = "the-one-thing-quote-rotation";
+const QUOTE_ROTATION_MINUTE_OPTIONS = [1, 3, 5, 10, 15, 30];
 const PERIOD_FOCUS_STORAGE_PREFIX = "the-one-thing-period-focus";
 const PERIOD_FOCUS_MONTH_OPTIONS = [3, 6, 9, 12];
 const PERIOD_FOCUS_CHANGE_LIMIT = 2;
@@ -135,6 +139,54 @@ function writeGuestItems(items) {
   } catch (err) {
     throw new Error("Could not save guest data in this browser.");
   }
+}
+
+function getQuoteNotesStorageKey(userId) {
+  return `${QUOTE_NOTES_STORAGE_PREFIX}-${userId}`;
+}
+
+function normalizeQuoteNote(row) {
+  return {
+    id: row.id,
+    text: String(row.text || "").trim().slice(0, 220),
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+  };
+}
+
+function createLocalQuoteNote(text) {
+  return {
+    id: `quote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    text: String(text || "").trim().slice(0, 220),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function readStoredQuoteNotes(userId) {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getQuoteNotesStorageKey(userId)));
+    return Array.isArray(parsed) ? parsed.map(normalizeQuoteNote).filter((note) => note.text) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function writeStoredQuoteNotes(userId, notes) {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(getQuoteNotesStorageKey(userId), JSON.stringify(notes.map(normalizeQuoteNote).filter((note) => note.text)));
+  } catch (err) {
+    throw new Error("Could not save quote notes in this browser.");
+  }
+}
+
+function readStoredQuoteRotationMinutes(userId) {
+  if (typeof window === "undefined") return 5;
+
+  const stored = Number(localStorage.getItem(`${QUOTE_ROTATION_STORAGE_PREFIX}-${userId}`));
+  return QUOTE_ROTATION_MINUTE_OPTIONS.includes(stored) ? stored : 5;
 }
 
 function guestSyncPromptSnoozed() {
@@ -234,6 +286,11 @@ function isMissingDeletedAtColumn(error) {
     error?.message?.toLowerCase().includes("deleted_at") ||
     error?.details?.toLowerCase().includes("deleted_at")
   );
+}
+
+function isMissingQuoteNotes(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return error?.code === "42P01" || message.includes("quote_notes");
 }
 
 function isMissingUserSettings(error) {
@@ -543,6 +600,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [error, setError] = useState(null);
   const [projectTagAvailable, setProjectTagAvailable] = useState(true);
   const [trashAvailable, setTrashAvailable] = useState(true);
+  const [quoteNotesAvailable, setQuoteNotesAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
   const [accountMessage, setAccountMessage] = useState("");
   const [accountError, setAccountError] = useState("");
@@ -560,6 +618,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [trashOpen, setTrashOpen] = useState(false);
   const [openProjectStat, setOpenProjectStat] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [quoteNotes, setQuoteNotes] = useState(() => readStoredQuoteNotes(user.id));
+  const [quoteDraft, setQuoteDraft] = useState("");
+  const [quotePanelOpen, setQuotePanelOpen] = useState(false);
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [quoteRotationMinutes, setQuoteRotationMinutes] = useState(() => readStoredQuoteRotationMinutes(user.id));
   const [liveTagSort, setLiveTagSort] = useState(() => readStoredTagSort(user.id, "live"));
   const [laterTagSort, setLaterTagSort] = useState(() => readStoredTagSort(user.id, "later"));
   const [periodFocus, setPeriodFocus] = useState(() => readStoredPeriodFocus(user.id));
@@ -613,6 +676,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const dailyGoalDraftDirty = dailyGoalDraftValue !== dailyGoal;
   const dailyGoalDraftCanSave = !dailyGoalLockedToday && dailyGoalDraftDirty;
   const breakUnlocked = pomodoroMode === "break";
+  const currentQuoteNote = quoteNotes.length ? quoteNotes[quoteIndex % quoteNotes.length] : null;
   const displayThoughts = liveTagSort ? sortByProjectThenText(thoughts) : thoughts;
   const displaySetAside = laterTagSort ? sortByProjectThenText(setAside) : setAside;
   const wheelItems = [
@@ -673,6 +737,41 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     },
     []
   );
+
+  const loadQuoteNotes = useCallback(async () => {
+    setQuoteIndex(0);
+
+    if (isGuest) {
+      setQuoteNotesAvailable(true);
+      setQuoteNotes(readStoredQuoteNotes(user.id));
+      return;
+    }
+
+    const { data, error: quoteError } = await supabase
+      .from("quote_notes")
+      .select("id,user_id,text,created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (quoteError) {
+      if (isMissingQuoteNotes(quoteError)) {
+        setQuoteNotesAvailable(false);
+        setQuoteNotes(readStoredQuoteNotes(user.id));
+        return;
+      }
+
+      throw quoteError;
+    }
+
+    const nextNotes = (data || []).map(normalizeQuoteNote).filter((note) => note.text);
+    setQuoteNotesAvailable(true);
+    setQuoteNotes(nextNotes);
+    try {
+      writeStoredQuoteNotes(user.id, nextNotes);
+    } catch (err) {
+      // Remote notes loaded; local cache can wait.
+    }
+  }, [isGuest, user.id]);
 
   const saveRemotePeriodFocusSettings = useCallback(
     async (nextFocus) => {
@@ -999,7 +1098,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     async function loadPlanner() {
       try {
-        if (!cancelled) await loadItems();
+        if (!cancelled) await Promise.all([loadItems(), loadQuoteNotes()]);
       } catch (err) {
         if (!cancelled) {
           setError(err.message || "Couldn't load your saved data.");
@@ -1013,7 +1112,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     return () => {
       cancelled = true;
     };
-  }, [loadItems]);
+  }, [loadItems, loadQuoteNotes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1045,6 +1144,32 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (typeof window === "undefined") return;
     localStorage.setItem(`${TAG_SORT_STORAGE_PREFIX}-${user.id}-later`, String(laterTagSort));
   }, [laterTagSort, user.id]);
+
+  useEffect(() => {
+    setQuoteNotes(readStoredQuoteNotes(user.id));
+    setQuoteIndex(0);
+    setQuotePanelOpen(false);
+    setQuoteRotationMinutes(readStoredQuoteRotationMinutes(user.id));
+  }, [user.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(`${QUOTE_ROTATION_STORAGE_PREFIX}-${user.id}`, String(quoteRotationMinutes));
+  }, [quoteRotationMinutes, user.id]);
+
+  useEffect(() => {
+    setQuoteIndex((index) => (quoteNotes.length ? index % quoteNotes.length : 0));
+  }, [quoteNotes.length]);
+
+  useEffect(() => {
+    if (quoteNotes.length < 2) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setQuoteIndex((index) => (index + 1) % quoteNotes.length);
+    }, quoteRotationMinutes * 60 * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [quoteNotes.length, quoteRotationMinutes]);
 
   useEffect(() => {
     const storedFocus = readStoredPeriodFocus(user.id);
@@ -1226,7 +1351,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     async function refreshRemoteData() {
       try {
-        await Promise.all([loadItems(), refreshSyncedSettings()]);
+        await Promise.all([loadItems(), loadQuoteNotes(), refreshSyncedSettings()]);
       } catch (err) {
         // Background sync should not interrupt the current session.
       }
@@ -1247,7 +1372,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       window.removeEventListener("focus", refreshRemoteData);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isGuest, loadItems, saveRemoteDailyGoalSettings, user.id]);
+  }, [isGuest, loadItems, loadQuoteNotes, saveRemoteDailyGoalSettings, user.id]);
 
   useEffect(() => {
     setDailyGoalDraft(String(dailyGoal));
@@ -2297,6 +2422,70 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     });
   }
 
+  function showNextQuoteNote() {
+    if (quoteNotes.length < 2) return;
+    setQuoteIndex((index) => (index + 1) % quoteNotes.length);
+  }
+
+  async function addQuoteNote(event) {
+    event.preventDefault();
+
+    const text = quoteDraft.trim().replace(/\s+/g, " ").slice(0, 220);
+    if (!text) return;
+
+    runMutation(async () => {
+      if (isGuest || !quoteNotesAvailable) {
+        const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
+        writeStoredQuoteNotes(user.id, nextNotes);
+        setQuoteNotes(nextNotes);
+      } else {
+        const { error: insertError } = await supabase.from("quote_notes").insert({
+          user_id: user.id,
+          text,
+        });
+
+        if (insertError) {
+          if (isMissingQuoteNotes(insertError)) {
+            setQuoteNotesAvailable(false);
+            const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
+            writeStoredQuoteNotes(user.id, nextNotes);
+            setQuoteNotes(nextNotes);
+          } else {
+            throw insertError;
+          }
+        } else {
+          await loadQuoteNotes();
+        }
+      }
+
+      setQuoteDraft("");
+      setQuoteIndex(0);
+    });
+  }
+
+  async function deleteCurrentQuoteNote() {
+    if (!currentQuoteNote) return;
+
+    runMutation(async () => {
+      if (isGuest || !quoteNotesAvailable || currentQuoteNote.id.startsWith("quote-")) {
+        const nextNotes = quoteNotes.filter((note) => note.id !== currentQuoteNote.id);
+        writeStoredQuoteNotes(user.id, nextNotes);
+        setQuoteNotes(nextNotes);
+      } else {
+        const { error: deleteError } = await supabase
+          .from("quote_notes")
+          .delete()
+          .eq("id", currentQuoteNote.id)
+          .eq("user_id", user.id);
+
+        if (deleteError) throw deleteError;
+        await loadQuoteNotes();
+      }
+
+      setQuoteIndex(0);
+    });
+  }
+
   function timeAgo(timestamp) {
     const time = new Date(timestamp).getTime();
     if (!time) return "some time ago";
@@ -2595,6 +2784,69 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           </button>
         </div>
       )}
+
+      <section className="quote-notes-strip" aria-label="Quotes and reminders">
+        <div className="quote-note-main">
+          <Quote size={16} aria-hidden="true" />
+          <div>
+            <p className="quote-note-kicker">quotes / rady / moje hlasky</p>
+            <blockquote>
+              {currentQuoteNote
+                ? currentQuoteNote.text
+                : "Add reminders that are not tasks. Tiny advice, your own lines, things worth hearing again."}
+            </blockquote>
+          </div>
+        </div>
+        <div className="quote-note-controls">
+          <label>
+            <span>every</span>
+            <select
+              value={quoteRotationMinutes}
+              onChange={(event) => setQuoteRotationMinutes(Number(event.target.value))}
+              aria-label="Quote rotation interval"
+            >
+              {QUOTE_ROTATION_MINUTE_OPTIONS.map((minutes) => (
+                <option key={minutes} value={minutes}>
+                  {minutes}m
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={showNextQuoteNote} disabled={quoteNotes.length < 2} aria-label="Show another quote">
+            <Shuffle size={14} />
+          </button>
+          <button type="button" onClick={() => setQuotePanelOpen((open) => !open)} aria-expanded={quotePanelOpen}>
+            <Plus size={14} />
+            add
+          </button>
+        </div>
+        {quotePanelOpen && (
+          <div className="quote-note-panel">
+            <form onSubmit={addQuoteNote}>
+              <textarea
+                value={quoteDraft}
+                onChange={(event) => setQuoteDraft(event.target.value)}
+                maxLength={220}
+                placeholder="Dovolit si znova sa najst..."
+                disabled={busy}
+              />
+              <button type="submit" disabled={busy || !quoteDraft.trim()}>
+                <Plus size={14} />
+                save
+              </button>
+            </form>
+            {!quoteNotesAvailable && !isGuest && (
+              <p className="quote-note-warning">Run the quote_notes SQL once to sync these across devices.</p>
+            )}
+            {currentQuoteNote && (
+              <button type="button" className="quote-note-delete" onClick={deleteCurrentQuoteNote} disabled={busy}>
+                <Trash2 size={13} />
+                delete shown
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
       {selectedProject && selectedProjectItems && (
         <div className="project-modal-backdrop" role="presentation" onClick={closeProjectModal}>

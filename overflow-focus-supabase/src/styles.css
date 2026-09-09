@@ -2535,6 +2535,131 @@ input:disabled {
   align-items: start;
 }
 
+.quote-notes-strip {
+  width: min(1320px, calc(100% - 48px));
+  margin: 8px auto 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--text);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  box-shadow: 0 14px 32px -28px rgba(31, 43, 34, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.quote-note-main {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.quote-note-main svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+.quote-note-kicker {
+  margin: 0 0 3px;
+  color: var(--muted-text);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quote-note-main blockquote {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.quote-note-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.quote-note-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.quote-note-controls select {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--text-soft);
+  padding: 0 8px;
+  font: inherit;
+}
+
+.quote-note-controls button,
+.quote-note-panel button {
+  min-height: 32px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.quote-note-panel {
+  grid-column: 1 / -1;
+  border-top: 1px dashed var(--border-dashed);
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.quote-note-panel form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.quote-note-panel textarea {
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 9px 10px;
+  font: inherit;
+  resize: vertical;
+}
+
+.quote-note-warning {
+  margin: 0;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.quote-note-delete {
+  justify-self: start;
+}
+
 .thoughts-panel {
   grid-column: 1;
   grid-row: 1 / span 2;
@@ -4678,6 +4803,25 @@ button.project-chip.editable:focus-visible {
 @media (max-width: 640px) {
   .planner-header {
     padding: 16px 12px 10px;
+  }
+
+  .quote-notes-strip {
+    width: calc(100% - 24px);
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .quote-note-controls {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .quote-note-panel form {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-note-panel button {
+    justify-self: start;
   }
 
   .header-row {
