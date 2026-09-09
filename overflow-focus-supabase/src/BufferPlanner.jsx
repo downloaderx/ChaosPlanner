@@ -2437,31 +2437,32 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             <span>Project focus</span>
             {periodFocusProjectChoices.length > 0 ? (
               <div className="period-project-options" aria-label="Project focus">
-                {periodFocusProjectChoices.map((project, index) => {
+                {periodFocusProjectChoices.map((project) => {
                   const selected = periodFocusDraft === project;
-                  const disabled = Boolean(periodFocus.text && project !== periodFocus.text && periodFocusChangesLeft <= 0);
 
                   return (
-                    <label
+                    <button
                       key={project}
-                      className={`period-project-option${selected ? " selected" : ""}${disabled ? " disabled" : ""}`}
+                      type="button"
+                      className={`period-project-option${selected ? " selected" : ""}`}
                       style={getProjectTagStyle(project)}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setPeriodFocusDraft(project);
+                      }}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setPeriodFocusDraft(project);
+                      }}
+                      disabled={Boolean(periodFocus.text && project !== periodFocus.text && periodFocusChangesLeft <= 0)}
+                      aria-pressed={selected}
                       title={selected ? "Selected project focus" : `Choose #${project} as project focus`}
                     >
-                      <input
-                        className="sr-only"
-                        type="radio"
-                        name="period-focus-project"
-                        value={project}
-                        checked={selected}
-                        disabled={disabled}
-                        onChange={() => setPeriodFocusDraft(project)}
-                        aria-label={`Choose #${project} as project focus`}
-                        autoFocus={index === 0}
-                      />
                       #{project}
                       {selected && <span className="period-project-selected-mark">selected</span>}
-                    </label>
+                    </button>
                   );
                 })}
               </div>
