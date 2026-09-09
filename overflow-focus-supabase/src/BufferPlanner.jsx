@@ -289,7 +289,7 @@ function sanitizePeriodFocus(value) {
   const months = PERIOD_FOCUS_MONTH_OPTIONS.includes(Number(next.months)) ? Number(next.months) : 3;
 
   return {
-    text: String(next.text || "").trim().slice(0, 80),
+    text: normalizeProjectTag(String(next.text || "")),
     months,
     startedAt: next.startedAt || "",
   };
@@ -2145,7 +2145,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   async function savePeriodFocus(event) {
     event.preventDefault();
 
-    const text = periodFocusDraft.trim().slice(0, 80);
+    const text = normalizeProjectTag(periodFocusDraft);
     if (!text) {
       await clearPeriodFocus();
       return;
@@ -2327,8 +2327,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       >
         <Target size={14} aria-hidden="true" />
         <span>
-          <strong>{periodFocus.text || "period focus"}</strong>
-          <small>{periodFocus.text ? `${periodFocus.months} month priority` : "3-12 months"}</small>
+          <strong>{periodFocus.text ? `#${periodFocus.text}` : "period focus"}</strong>
+          <small>{periodFocus.text ? `${periodFocus.months} month project` : "choose project"}</small>
         </span>
       </button>
       <button
@@ -2348,14 +2348,23 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       {periodFocusOpen && (
         <form className="period-focus-panel" onSubmit={savePeriodFocus}>
           <label>
-            <span>Main focus</span>
-            <input
+            <span>Project focus</span>
+            <select
               value={periodFocusDraft}
               onChange={(event) => setPeriodFocusDraft(event.target.value)}
-              maxLength={80}
-              placeholder="what gets the long arc?"
+              disabled={projectOptions.length === 0}
               autoFocus
-            />
+            >
+              <option value="">{projectOptions.length ? "choose project" : "no project tags yet"}</option>
+              {periodFocusDraft && !projectOptions.includes(periodFocusDraft) && (
+                <option value={periodFocusDraft}>#{periodFocusDraft}</option>
+              )}
+              {projectOptions.map((project) => (
+                <option key={project} value={project}>
+                  #{project}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             <span>For</span>
@@ -2386,8 +2395,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       {periodFocusInfoOpen && (
         <div className="period-focus-info-popover" role="note">
           <p>
-            A soft north star for the next few months. You can still detour when your brain needs air, but this stays
-            the one thing that gets first priority again.
+            Pick one hashtag project as the soft north star for the next few months. You can still detour when your
+            brain needs air, but this project gets first priority again.
           </p>
           <button type="button" onClick={() => setPeriodFocusInfoOpen(false)} aria-label="Close period focus info">
             <X size={13} />
