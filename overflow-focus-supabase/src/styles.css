@@ -2295,6 +2295,44 @@ input:disabled {
   color: var(--muted);
 }
 
+.panel-title-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.tag-sort-toggle {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted-text);
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tag-sort-toggle.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+.tag-sort-toggle:disabled {
+  opacity: 0.42;
+  cursor: not-allowed !important;
+}
+
 .add-form {
   gap: 8px;
   margin-bottom: 18px;
@@ -3035,6 +3073,17 @@ button.project-chip.editable:focus-visible {
 
 .panel-copy {
   margin-bottom: 14px;
+}
+
+.aside-title-row {
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.aside-title-row .panel-copy {
+  margin-bottom: 0;
+  min-width: 0;
 }
 
 .panel-copy h2,
@@ -8407,5 +8456,24 @@ button.project-chip.editable:focus-visible {
   [data-theme="cosmos"] input::placeholder,
   [data-theme="cosmos"] textarea::placeholder {
     color: rgba(255, 255, 255, 0.72) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel-title-row,
+  .aside-title-row {
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .panel-title-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .tag-sort-toggle {
+    min-height: 28px !important;
+    padding: 0 9px !important;
+    font-size: 10px !important;
   }
 }

@@ -44,6 +44,7 @@ const GUEST_SYNC_PROMPT_DELAY_MS = 2 * 60 * 1000;
 const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
 const REMOTE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
 const PROJECT_TAG_PALETTE = [
   { bg: "#ffe3e0", border: "#ef8f86", text: "#8c2d28" },
   { bg: "#fff0bf", border: "#d6a934", text: "#684b00" },
@@ -258,6 +259,11 @@ function sortByProjectThenText(items) {
   });
 }
 
+function readStoredTagSort(userId, column) {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(`${TAG_SORT_STORAGE_PREFIX}-${userId}-${column}`) === "true";
+}
+
 function summarizeSuggestionAnchor(text) {
   const normalized = (text || "").trim().replace(/\s+/g, " ");
   if (normalized.length <= 72) return normalized;
@@ -416,6 +422,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [trashOpen, setTrashOpen] = useState(false);
   const [openProjectStat, setOpenProjectStat] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [liveTagSort, setLiveTagSort] = useState(() => readStoredTagSort(user.id, "live"));
+  const [laterTagSort, setLaterTagSort] = useState(() => readStoredTagSort(user.id, "later"));
   const [appInfoOpen, setAppInfoOpen] = useState(false);
   const [goalInfoOpen, setGoalInfoOpen] = useState(false);
   const [projectInfoOpen, setProjectInfoOpen] = useState(false);
@@ -461,11 +469,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const dailyGoalDraftDirty = dailyGoalDraftValue !== dailyGoal;
   const dailyGoalDraftCanSave = !dailyGoalLockedToday && dailyGoalDraftDirty;
   const breakUnlocked = pomodoroMode === "break";
-  const sortedThoughts = sortByProjectThenText(thoughts);
-  const sortedSetAside = sortByProjectThenText(setAside);
+  const displayThoughts = liveTagSort ? sortByProjectThenText(thoughts) : thoughts;
+  const displaySetAside = laterTagSort ? sortByProjectThenText(setAside) : setAside;
   const wheelItems = [
-    ...sortedThoughts.map((item) => ({ ...item, sourceColumn: "live" })),
-    ...sortedSetAside.map((item) => ({ ...item, sourceColumn: "later" })),
+    ...displayThoughts.map((item) => ({ ...item, sourceColumn: "live" })),
+    ...displaySetAside.map((item) => ({ ...item, sourceColumn: "later" })),
   ];
   const wheelSlices = getWheelSlices(wheelItems);
   const wheelGradient = buildWheelGradient(wheelSlices);
@@ -796,6 +804,16 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       cancelled = true;
     };
   }, [loadUserSettings]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(`${TAG_SORT_STORAGE_PREFIX}-${user.id}-live`, String(liveTagSort));
+  }, [liveTagSort, user.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(`${TAG_SORT_STORAGE_PREFIX}-${user.id}-later`, String(laterTagSort));
+  }, [laterTagSort, user.id]);
 
   useEffect(() => {
     if (guestSyncPromptHandled || guestSyncPromptVisible || guestSyncPromptSnoozed()) return undefined;
@@ -1296,7 +1314,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     const projectTag = normalizeProjectTag(unstuckProject) || normalizeProjectTag(draftProject) || focus?.projectTag || projectOptions[0] || "";
     const activeItems = [...(focus ? [focus] : []), ...thoughts, ...setAside];
     const projectItems = projectTag ? activeItems.filter((item) => item.projectTag === projectTag) : activeItems;
-    const anchorItem = focus || sortedThoughts[0] || sortedSetAside[0] || projectItems[0] || activeItems[0];
+    const anchorItem = focus || displayThoughts[0] || displaySetAside[0] || projectItems[0] || activeItems[0];
     const anchorText = summarizeSuggestionAnchor(anchorItem?.text || draft.trim());
     const suggestionProject = projectTag || anchorItem?.projectTag || "";
 
@@ -2253,7 +2271,20 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
               <h2 className="hand-title">whatever just crossed my mind</h2>
               <p>Fresh brain-noise goes here. Tap play to focus it in The One Thing, or arrow it to Later.</p>
             </div>
-            <span className="live-count">{thoughts.length}/{ACTIVE_CAP} live</span>
+            <div className="panel-title-actions">
+              <button
+                type="button"
+                className={`tag-sort-toggle${liveTagSort ? " active" : ""}`}
+                onClick={() => setLiveTagSort((value) => !value)}
+                aria-pressed={liveTagSort}
+                disabled={thoughts.length < 2}
+                title={liveTagSort ? "Use natural live order" : "Sort live thoughts by project tag A-Z"}
+              >
+                <Hash size={12} aria-hidden="true" />
+                tags A-Z
+              </button>
+              <span className="live-count">{thoughts.length}/{ACTIVE_CAP} live</span>
+            </div>
           </div>
 
           <form onSubmit={addThought} className="add-form">
@@ -2486,7 +2517,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 Nothing parked here. Good. Jot down anything that pops up - you don't have to act on it yet.
               </p>
             ) : (
-              sortedThoughts.map((item) => (
+              displayThoughts.map((item) => (
                 <div key={item.id} className="bp-card sticky-note" style={{ transform: `rotate(${item.rot}deg)` }}>
                   <div className="item-copy">
                     {renderEditableItemCopy(item)}
@@ -2527,16 +2558,31 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         </section>
 
         <section aria-label="Set aside for later" className="panel panel-aside">
-          <div className="panel-copy">
-            <h2>set aside for later</h2>
-            <p>Saved for later. Bring something back to live thoughts when it feels ready to compete for focus.</p>
+          <div className="panel-title-row aside-title-row">
+            <div className="panel-copy">
+              <h2>set aside for later</h2>
+              <p>Saved for later. Bring something back to live thoughts when it feels ready to compete for focus.</p>
+            </div>
+            <div className="panel-title-actions">
+              <button
+                type="button"
+                className={`tag-sort-toggle${laterTagSort ? " active" : ""}`}
+                onClick={() => setLaterTagSort((value) => !value)}
+                aria-pressed={laterTagSort}
+                disabled={setAside.length < 2}
+                title={laterTagSort ? "Use natural later order" : "Sort later tasks by project tag A-Z"}
+              >
+                <Hash size={12} aria-hidden="true" />
+                tags A-Z
+              </button>
+            </div>
           </div>
 
           <div className="bp-scroll aside-list">
             {setAside.length === 0 ? (
               <p className="muted roomy">Empty for now. Once you have more than {ACTIVE_CAP} live thoughts, the older ones will rest here.</p>
             ) : (
-              sortedSetAside.map((item) => (
+              displaySetAside.map((item) => (
                 <div key={item.id} className="bp-aside-row">
                   <div className="item-copy">
                     {renderEditableItemCopy(item)}
