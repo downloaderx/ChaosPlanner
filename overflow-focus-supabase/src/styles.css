@@ -2114,6 +2114,50 @@ input:disabled {
   font-weight: 900;
 }
 
+.period-project-picker {
+  display: grid;
+  gap: 7px;
+}
+
+.period-project-picker > span {
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.period-project-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-height: 132px;
+  overflow: auto;
+  padding: 1px;
+}
+
+.period-project-option {
+  min-height: 34px;
+  border: 1px solid var(--project-chip-border);
+  border-radius: 999px;
+  background: var(--project-chip-bg);
+  color: var(--project-chip-text);
+  padding: 0 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.period-project-option.selected {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--project-chip-border);
+}
+
+.period-project-empty {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .period-focus-panel input,
 .period-focus-panel select {
   width: 100%;
@@ -2124,6 +2168,57 @@ input:disabled {
   color: var(--text);
   padding: 0 10px;
   font: inherit;
+}
+
+.period-focus-timer {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  padding: 9px;
+}
+
+.period-focus-timer-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.period-focus-timer-row strong,
+.period-focus-timer-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.period-focus-timer-row strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.period-focus-timer-row span {
+  color: var(--muted-text);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.period-focus-progress {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+}
+
+.period-focus-progress span {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  background: var(--accent);
 }
 
 .period-focus-panel p {

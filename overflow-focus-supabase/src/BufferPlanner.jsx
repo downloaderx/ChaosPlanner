@@ -416,6 +416,70 @@ function getLocalDateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function parseLocalDateKey(value) {
+  const [year, month, day] = String(value || "")
+    .split("-")
+    .map(Number);
+  if (!year || !month || !day) return null;
+
+  const date = new Date(year, month - 1, day);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function addMonthsToDate(date, months) {
+  const next = new Date(date);
+  const originalDay = next.getDate();
+  next.setMonth(next.getMonth() + months);
+
+  if (next.getDate() !== originalDay) {
+    next.setDate(0);
+  }
+
+  return next;
+}
+
+function formatPeriodDate(date) {
+  if (!date || !Number.isFinite(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+}
+
+function getPeriodFocusTiming(focus) {
+  if (!focus?.text || !focus?.startedAt) {
+    return {
+      label: "",
+      detail: "",
+      progress: 0,
+      daysLeft: null,
+    };
+  }
+
+  const start = parseLocalDateKey(focus.startedAt);
+  if (!start) {
+    return {
+      label: "",
+      detail: "",
+      progress: 0,
+      daysLeft: null,
+    };
+  }
+
+  const end = addMonthsToDate(start, focus.months);
+  const today = parseLocalDateKey(getLocalDateKey());
+  const totalMs = Math.max(1, end.getTime() - start.getTime());
+  const elapsedMs = Math.max(0, today.getTime() - start.getTime());
+  const remainingMs = end.getTime() - today.getTime();
+  const daysLeft = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+  const progress = Math.max(0, Math.min(100, Math.round((elapsedMs / totalMs) * 100)));
+
+  return {
+    label: daysLeft === 0 ? "time is up" : `${daysLeft}d left`,
+    detail: `${formatPeriodDate(start)} -> ${formatPeriodDate(end)}`,
+    progress,
+    daysLeft,
+  };
+}
+
 function getInitialPomodoroState(userId) {
   const fallback = {
     mode: "focus",
@@ -558,6 +622,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const projectOptions = Array.from(new Set(allVisibleItems.map((item) => item.projectTag).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b)
   );
+  const periodFocusProjectChoices = periodFocusDraft && !projectOptions.includes(periodFocusDraft)
+    ? [periodFocusDraft, ...projectOptions]
+    : projectOptions;
+  const periodFocusTiming = getPeriodFocusTiming(periodFocus);
   const projectStats = Object.entries(
     log.reduce((counts, item) => {
       if (!item.projectTag) return counts;
@@ -2154,10 +2222,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     const months = PERIOD_FOCUS_MONTH_OPTIONS.includes(Number(periodFocusMonthsDraft))
       ? Number(periodFocusMonthsDraft)
       : 3;
+    const keepsCurrentPeriod = periodFocus.text === text && periodFocus.months === months && periodFocus.startedAt;
     const nextFocus = sanitizePeriodFocus({
       text,
       months,
-      startedAt: periodFocus.startedAt || getLocalDateKey(),
+      startedAt: keepsCurrentPeriod ? periodFocus.startedAt : getLocalDateKey(),
     });
 
     setPeriodFocus(nextFocus);
@@ -2328,7 +2397,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         <Target size={14} aria-hidden="true" />
         <span>
           <strong>{periodFocus.text ? `#${periodFocus.text}` : "period focus"}</strong>
-          <small>{periodFocus.text ? `${periodFocus.months} month project` : "choose project"}</small>
+          <small>{periodFocus.text ? periodFocusTiming.label || `${periodFocus.months} month project` : "choose project"}</small>
         </span>
       </button>
       <button
@@ -2347,25 +2416,31 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       {periodFocusOpen && (
         <form className="period-focus-panel" onSubmit={savePeriodFocus}>
-          <label>
+          <div className="period-project-picker">
             <span>Project focus</span>
-            <select
-              value={periodFocusDraft}
-              onChange={(event) => setPeriodFocusDraft(event.target.value)}
-              disabled={projectOptions.length === 0}
-              autoFocus
-            >
-              <option value="">{projectOptions.length ? "choose project" : "no project tags yet"}</option>
-              {periodFocusDraft && !projectOptions.includes(periodFocusDraft) && (
-                <option value={periodFocusDraft}>#{periodFocusDraft}</option>
-              )}
-              {projectOptions.map((project) => (
-                <option key={project} value={project}>
-                  #{project}
-                </option>
-              ))}
-            </select>
-          </label>
+            {periodFocusProjectChoices.length > 0 ? (
+              <div className="period-project-options" aria-label="Project focus">
+                {periodFocusProjectChoices.map((project) => {
+                  const selected = periodFocusDraft === project;
+
+                  return (
+                    <button
+                      key={project}
+                      type="button"
+                      className={`period-project-option${selected ? " selected" : ""}`}
+                      style={getProjectTagStyle(project)}
+                      onClick={() => setPeriodFocusDraft(project)}
+                      aria-pressed={selected}
+                    >
+                      #{project}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="period-project-empty">Add a hashtag to any task first, then it can become the period focus.</p>
+            )}
+          </div>
           <label>
             <span>For</span>
             <select
@@ -2379,7 +2454,18 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
               ))}
             </select>
           </label>
-          <p>Detours are allowed. This is just the thing that keeps getting first claim.</p>
+          {periodFocus.text && (
+            <div className="period-focus-timer" aria-label="Period focus timer">
+              <div className="period-focus-timer-row">
+                <strong>{periodFocusTiming.label || `${periodFocus.months} month project`}</strong>
+                <span>{periodFocusTiming.detail}</span>
+              </div>
+              <div className="period-focus-progress">
+                <span style={{ width: `${periodFocusTiming.progress}%` }} />
+              </div>
+            </div>
+          )}
+          <p>Detours are allowed. Save starts a new countdown when you change project or duration.</p>
           <div className="period-focus-actions">
             <button type="button" onClick={clearPeriodFocus}>
               clear
