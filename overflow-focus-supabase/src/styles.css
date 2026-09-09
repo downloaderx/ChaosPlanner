@@ -2151,6 +2151,11 @@ input:disabled {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--project-chip-border);
 }
 
+.period-project-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
 .period-project-empty {
   margin: 0;
   color: var(--muted-text);
@@ -2205,6 +2210,13 @@ input:disabled {
   font-weight: 800;
 }
 
+.period-focus-timer p {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .period-focus-progress {
   height: 6px;
   overflow: hidden;
@@ -2226,6 +2238,11 @@ input:disabled {
   color: var(--muted-text);
   font-size: 11px;
   line-height: 1.45;
+}
+
+.period-focus-warning {
+  color: var(--danger) !important;
+  font-weight: 900;
 }
 
 .period-focus-actions {
@@ -2254,6 +2271,11 @@ input:disabled {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
+}
+
+.period-focus-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .period-focus-info-btn {

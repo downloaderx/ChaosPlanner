@@ -48,6 +48,7 @@ const REMOTE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
 const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
 const PERIOD_FOCUS_STORAGE_PREFIX = "the-one-thing-period-focus";
 const PERIOD_FOCUS_MONTH_OPTIONS = [3, 6, 9, 12];
+const PERIOD_FOCUS_CHANGE_LIMIT = 2;
 const PROJECT_TAG_PALETTE = [
   { bg: "#ffe3e0", border: "#ef8f86", text: "#8c2d28" },
   { bg: "#fff0bf", border: "#d6a934", text: "#684b00" },
@@ -281,6 +282,7 @@ function getDefaultPeriodFocus() {
     text: "",
     months: 3,
     startedAt: "",
+    changeCount: 0,
   };
 }
 
@@ -292,6 +294,7 @@ function sanitizePeriodFocus(value) {
     text: normalizeProjectTag(String(next.text || "")),
     months,
     startedAt: next.startedAt || "",
+    changeCount: Math.max(0, Math.min(PERIOD_FOCUS_CHANGE_LIMIT, Math.round(Number(next.changeCount) || 0))),
   };
 }
 
@@ -311,6 +314,7 @@ function focusFromSettingsRow(data) {
     text: data?.period_focus_text || "",
     months: data?.period_focus_months,
     startedAt: data?.period_focus_started_on || "",
+    changeCount: data?.period_focus_change_count,
   });
 }
 
@@ -626,6 +630,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     ? [periodFocusDraft, ...projectOptions]
     : projectOptions;
   const periodFocusTiming = getPeriodFocusTiming(periodFocus);
+  const periodFocusChangeCount = periodFocus.changeCount || 0;
+  const periodFocusChangesLeft = Math.max(0, PERIOD_FOCUS_CHANGE_LIMIT - periodFocusChangeCount);
+  const periodFocusDraftChangesProject = Boolean(periodFocus.text && periodFocusDraft && periodFocusDraft !== periodFocus.text);
+  const periodFocusChangeBlocked = periodFocusDraftChangesProject && periodFocusChangesLeft <= 0;
   const projectStats = Object.entries(
     log.reduce((counts, item) => {
       if (!item.projectTag) return counts;
@@ -678,6 +686,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           period_focus_text: hasFocus ? syncedFocus.text : null,
           period_focus_months: hasFocus ? syncedFocus.months : 3,
           period_focus_started_on: hasFocus ? syncedFocus.startedAt || getLocalDateKey() : null,
+          period_focus_change_count: hasFocus ? syncedFocus.changeCount : 0,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id" }
@@ -701,7 +710,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     let canSyncPeriodFocus = true;
     let { data, error: settingsError } = await supabase
       .from("user_settings")
-      .select("daily_goal,daily_goal_changed_on,period_focus_text,period_focus_months,period_focus_started_on")
+      .select("daily_goal,daily_goal_changed_on,period_focus_text,period_focus_months,period_focus_started_on,period_focus_change_count")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -757,6 +766,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       settingsPayload.period_focus_text = null;
       settingsPayload.period_focus_months = 3;
       settingsPayload.period_focus_started_on = null;
+      settingsPayload.period_focus_change_count = 0;
     }
 
     const { error: insertError } = await supabase.from("user_settings").insert(settingsPayload);
@@ -1167,7 +1177,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       let canSyncPeriodFocus = true;
       let { data, error: settingsError } = await supabase
         .from("user_settings")
-        .select("daily_goal,daily_goal_changed_on,period_focus_text,period_focus_months,period_focus_started_on")
+        .select("daily_goal,daily_goal_changed_on,period_focus_text,period_focus_months,period_focus_started_on,period_focus_change_count")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -2222,11 +2232,18 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     const months = PERIOD_FOCUS_MONTH_OPTIONS.includes(Number(periodFocusMonthsDraft))
       ? Number(periodFocusMonthsDraft)
       : 3;
-    const keepsCurrentPeriod = periodFocus.text === text && periodFocus.months === months && periodFocus.startedAt;
+    const hasExistingPeriod = Boolean(periodFocus.text && periodFocus.startedAt);
+    const changesProject = hasExistingPeriod && periodFocus.text !== text;
+    if (changesProject && periodFocus.changeCount >= PERIOD_FOCUS_CHANGE_LIMIT) {
+      setError("This period focus already used its 2 project changes. Clear it to start a new period.");
+      return;
+    }
+
     const nextFocus = sanitizePeriodFocus({
       text,
-      months,
-      startedAt: keepsCurrentPeriod ? periodFocus.startedAt : getLocalDateKey(),
+      months: hasExistingPeriod ? periodFocus.months : months,
+      startedAt: hasExistingPeriod ? periodFocus.startedAt : getLocalDateKey(),
+      changeCount: changesProject ? periodFocus.changeCount + 1 : periodFocus.changeCount,
     });
 
     setPeriodFocus(nextFocus);
@@ -2430,6 +2447,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                       className={`period-project-option${selected ? " selected" : ""}`}
                       style={getProjectTagStyle(project)}
                       onClick={() => setPeriodFocusDraft(project)}
+                      disabled={Boolean(periodFocus.text && project !== periodFocus.text && periodFocusChangesLeft <= 0)}
                       aria-pressed={selected}
                     >
                       #{project}
@@ -2446,6 +2464,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             <select
               value={periodFocusMonthsDraft}
               onChange={(event) => setPeriodFocusMonthsDraft(Number(event.target.value))}
+              disabled={Boolean(periodFocus.text)}
             >
               {PERIOD_FOCUS_MONTH_OPTIONS.map((months) => (
                 <option key={months} value={months}>
@@ -2463,14 +2482,24 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
               <div className="period-focus-progress">
                 <span style={{ width: `${periodFocusTiming.progress}%` }} />
               </div>
+              <p>
+                {periodFocusChangesLeft} of {PERIOD_FOCUS_CHANGE_LIMIT} project changes left. The deadline stays the
+                same if you switch project.
+              </p>
             </div>
           )}
-          <p>Detours are allowed. Save starts a new countdown when you change project or duration.</p>
+          {periodFocusChangeBlocked && (
+            <p className="period-focus-warning">This period already used both project changes.</p>
+          )}
+          <p>
+            Detours are allowed. The countdown starts on first save, then keeps the same end date even if the project
+            changes.
+          </p>
           <div className="period-focus-actions">
             <button type="button" onClick={clearPeriodFocus}>
               clear
             </button>
-            <button type="submit">
+            <button type="submit" disabled={periodFocusChangeBlocked}>
               <Check size={13} aria-hidden="true" />
               save
             </button>
@@ -2482,7 +2511,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         <div className="period-focus-info-popover" role="note">
           <p>
             Pick one hashtag project as the soft north star for the next few months. You can still detour when your
-            brain needs air, but this project gets first priority again.
+            brain needs air. You can switch it twice during the period, but the deadline does not move.
           </p>
           <button type="button" onClick={() => setPeriodFocusInfoOpen(false)} aria-label="Close period focus info">
             <X size={13} />

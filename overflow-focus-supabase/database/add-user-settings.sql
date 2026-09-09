@@ -7,6 +7,7 @@ create table if not exists public.user_settings (
   period_focus_text text null,
   period_focus_months int not null default 3 check (period_focus_months in (3, 6, 9, 12)),
   period_focus_started_on date null,
+  period_focus_change_count int not null default 0 check (period_focus_change_count between 0 and 2),
   updated_at timestamptz not null default now()
 );
 
@@ -18,6 +19,9 @@ add column if not exists period_focus_months int not null default 3 check (perio
 
 alter table public.user_settings
 add column if not exists period_focus_started_on date null;
+
+alter table public.user_settings
+add column if not exists period_focus_change_count int not null default 0 check (period_focus_change_count between 0 and 2);
 
 alter table public.user_settings enable row level security;
 
