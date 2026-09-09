@@ -2271,20 +2271,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
               <h2 className="hand-title">whatever just crossed my mind</h2>
               <p>Fresh brain-noise goes here. Tap play to focus it in The One Thing, or arrow it to Later.</p>
             </div>
-            <div className="panel-title-actions">
-              <button
-                type="button"
-                className={`tag-sort-toggle${liveTagSort ? " active" : ""}`}
-                onClick={() => setLiveTagSort((value) => !value)}
-                aria-pressed={liveTagSort}
-                disabled={thoughts.length < 2}
-                title={liveTagSort ? "Use natural live order" : "Sort live thoughts by project tag A-Z"}
-              >
-                <Hash size={12} aria-hidden="true" />
-                tags A-Z
-              </button>
-              <span className="live-count">{thoughts.length}/{ACTIVE_CAP} live</span>
-            </div>
+            <span className="live-count">{thoughts.length}/{ACTIVE_CAP} live</span>
           </div>
 
           <form onSubmit={addThought} className="add-form">
@@ -2507,6 +2494,21 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 )}
               </div>
             )}
+          </div>
+
+          <div className="list-sort-row">
+            <button
+              type="button"
+              className={`tag-sort-toggle${liveTagSort ? " active" : ""}`}
+              onClick={() => setLiveTagSort((value) => !value)}
+              aria-pressed={liveTagSort}
+              disabled={thoughts.length < 2}
+              title={liveTagSort ? "Use natural live order" : "Sort live thoughts by project tag A-Z"}
+            >
+              <Hash size={12} aria-hidden="true" />
+              tags A-Z
+            </button>
+            <span>{liveTagSort ? "sorted by project tag" : "natural order"}</span>
           </div>
 
           <div className="bp-scroll thought-list">

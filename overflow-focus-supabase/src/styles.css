@@ -2333,6 +2333,21 @@ input:disabled {
   cursor: not-allowed !important;
 }
 
+.list-sort-row {
+  margin: 12px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted-text);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.list-sort-row span {
+  max-width: 140px;
+}
+
 .add-form {
   gap: 8px;
   margin-bottom: 18px;
@@ -8475,5 +8490,15 @@ button.project-chip.editable:focus-visible {
     min-height: 28px !important;
     padding: 0 9px !important;
     font-size: 10px !important;
+  }
+
+  .list-sort-row {
+    margin: 10px 0 9px !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+  }
+
+  .list-sort-row span {
+    display: none !important;
   }
 }
