@@ -2835,9 +2835,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 save
               </button>
             </form>
-            {!quoteNotesAvailable && !isGuest && (
-              <p className="quote-note-warning">Run the quote_notes SQL once to sync these across devices.</p>
-            )}
             {currentQuoteNote && (
               <button type="button" className="quote-note-delete" onClick={deleteCurrentQuoteNote} disabled={busy}>
                 <Trash2 size={13} />
