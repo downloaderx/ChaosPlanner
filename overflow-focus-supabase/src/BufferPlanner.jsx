@@ -2449,7 +2449,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                       title={selected ? "Selected project focus" : `Choose #${project} as project focus`}
                     >
                       <input
-                        className="sr-only"
                         type="radio"
                         name="period-focus-project"
                         value={project}
@@ -2459,8 +2458,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                         aria-label={`Choose #${project} as project focus`}
                         autoFocus={index === 0}
                       />
-                      #{project}
-                      {selected && <span className="period-project-selected-mark">selected</span>}
+                      <span className="period-project-name">#{project}</span>
+                      {selected && <span className="period-project-selected-mark">current</span>}
                     </label>
                   );
                 })}
