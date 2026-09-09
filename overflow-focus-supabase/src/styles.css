@@ -2126,29 +2126,50 @@ input:disabled {
 }
 
 .period-project-options {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
   max-height: 132px;
   overflow: auto;
-  padding: 1px;
+  padding: 3px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .period-project-option {
-  min-height: 34px;
+  position: relative;
+  z-index: 3;
+  min-height: 40px;
   border: 1px solid var(--project-chip-border);
   border-radius: 999px;
   background: var(--project-chip-bg);
   color: var(--project-chip-text);
-  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 13px;
   font: inherit;
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .period-project-option.selected {
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--project-chip-border);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 5px var(--project-chip-border), 0 10px 18px -16px rgba(0, 0, 0, 0.45);
+}
+
+.period-project-selected-mark {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--project-chip-text) 14%, transparent);
+  padding: 2px 6px;
+  font-size: 9px;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .period-project-option:disabled {

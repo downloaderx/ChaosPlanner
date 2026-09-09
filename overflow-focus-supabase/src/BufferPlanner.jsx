@@ -2446,11 +2446,22 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                       type="button"
                       className={`period-project-option${selected ? " selected" : ""}`}
                       style={getProjectTagStyle(project)}
-                      onClick={() => setPeriodFocusDraft(project)}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setPeriodFocusDraft(project);
+                      }}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setPeriodFocusDraft(project);
+                      }}
                       disabled={Boolean(periodFocus.text && project !== periodFocus.text && periodFocusChangesLeft <= 0)}
                       aria-pressed={selected}
+                      title={selected ? "Selected project focus" : `Choose #${project} as project focus`}
                     >
                       #{project}
+                      {selected && <span className="period-project-selected-mark">selected</span>}
                     </button>
                   );
                 })}
