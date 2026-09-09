@@ -23,6 +23,7 @@ import {
   Pencil,
   FolderOpen,
   Shuffle,
+  Target,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -45,6 +46,8 @@ const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
 const REMOTE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
 const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
+const PERIOD_FOCUS_STORAGE_PREFIX = "the-one-thing-period-focus";
+const PERIOD_FOCUS_MONTH_OPTIONS = [3, 6, 9, 12];
 const PROJECT_TAG_PALETTE = [
   { bg: "#ffe3e0", border: "#ef8f86", text: "#8c2d28" },
   { bg: "#fff0bf", border: "#d6a934", text: "#684b00" },
@@ -237,6 +240,11 @@ function isMissingUserSettings(error) {
   return error?.code === "42P01" || message.includes("user_settings");
 }
 
+function isMissingPeriodFocusSettings(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return error?.code === "42703" || message.includes("period_focus");
+}
+
 function sortNewestFirst(a, b, field = "startedAt") {
   return new Date(b[field] || 0).getTime() - new Date(a[field] || 0).getTime();
 }
@@ -262,6 +270,68 @@ function sortByProjectThenText(items) {
 function readStoredTagSort(userId, column) {
   if (typeof window === "undefined") return false;
   return localStorage.getItem(`${TAG_SORT_STORAGE_PREFIX}-${userId}-${column}`) === "true";
+}
+
+function getPeriodFocusStorageKey(userId) {
+  return `${PERIOD_FOCUS_STORAGE_PREFIX}-${userId}`;
+}
+
+function getDefaultPeriodFocus() {
+  return {
+    text: "",
+    months: 3,
+    startedAt: "",
+  };
+}
+
+function sanitizePeriodFocus(value) {
+  const next = value && typeof value === "object" ? value : {};
+  const months = PERIOD_FOCUS_MONTH_OPTIONS.includes(Number(next.months)) ? Number(next.months) : 3;
+
+  return {
+    text: String(next.text || "").trim().slice(0, 80),
+    months,
+    startedAt: next.startedAt || "",
+  };
+}
+
+function readStoredPeriodFocus(userId) {
+  if (typeof window === "undefined") return getDefaultPeriodFocus();
+
+  try {
+    const stored = JSON.parse(localStorage.getItem(getPeriodFocusStorageKey(userId)));
+    return sanitizePeriodFocus(stored);
+  } catch (err) {
+    return getDefaultPeriodFocus();
+  }
+}
+
+function focusFromSettingsRow(data) {
+  return sanitizePeriodFocus({
+    text: data?.period_focus_text || "",
+    months: data?.period_focus_months,
+    startedAt: data?.period_focus_started_on || "",
+  });
+}
+
+function writeStoredPeriodFocus(userId, value) {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(getPeriodFocusStorageKey(userId), JSON.stringify(sanitizePeriodFocus(value)));
+  } catch (err) {
+    // localStorage unavailable - the season focus just won't persist for this browser.
+  }
+}
+
+function removeStoredPeriodFocus(userId) {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem(getPeriodFocusStorageKey(userId));
+  } catch (err) {
+    // localStorage unavailable - nothing to remove.
+  }
 }
 
 function summarizeSuggestionAnchor(text) {
@@ -424,6 +494,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [selectedProject, setSelectedProject] = useState(null);
   const [liveTagSort, setLiveTagSort] = useState(() => readStoredTagSort(user.id, "live"));
   const [laterTagSort, setLaterTagSort] = useState(() => readStoredTagSort(user.id, "later"));
+  const [periodFocus, setPeriodFocus] = useState(() => readStoredPeriodFocus(user.id));
+  const [periodFocusDraft, setPeriodFocusDraft] = useState(() => readStoredPeriodFocus(user.id).text);
+  const [periodFocusMonthsDraft, setPeriodFocusMonthsDraft] = useState(() => readStoredPeriodFocus(user.id).months);
+  const [periodFocusOpen, setPeriodFocusOpen] = useState(false);
+  const [periodFocusSyncAvailable, setPeriodFocusSyncAvailable] = useState(true);
   const [appInfoOpen, setAppInfoOpen] = useState(false);
   const [goalInfoOpen, setGoalInfoOpen] = useState(false);
   const [projectInfoOpen, setProjectInfoOpen] = useState(false);
@@ -522,21 +597,66 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     []
   );
 
+  const saveRemotePeriodFocusSettings = useCallback(
+    async (nextFocus) => {
+      if (isGuest || !settingsAvailable || !periodFocusSyncAvailable) return;
+
+      const syncedFocus = sanitizePeriodFocus(nextFocus);
+      const hasFocus = Boolean(syncedFocus.text);
+      const { error: settingsError } = await supabase.from("user_settings").upsert(
+        {
+          user_id: user.id,
+          period_focus_text: hasFocus ? syncedFocus.text : null,
+          period_focus_months: hasFocus ? syncedFocus.months : 3,
+          period_focus_started_on: hasFocus ? syncedFocus.startedAt || getLocalDateKey() : null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (settingsError) {
+        if (isMissingPeriodFocusSettings(settingsError)) {
+          setPeriodFocusSyncAvailable(false);
+          return;
+        }
+
+        throw settingsError;
+      }
+    },
+    [isGuest, periodFocusSyncAvailable, settingsAvailable, user.id]
+  );
+
   const loadUserSettings = useCallback(async () => {
     if (isGuest) return;
 
-    const { data, error: settingsError } = await supabase
+    let canSyncPeriodFocus = true;
+    let { data, error: settingsError } = await supabase
       .from("user_settings")
-      .select("daily_goal,daily_goal_changed_on")
+      .select("daily_goal,daily_goal_changed_on,period_focus_text,period_focus_months,period_focus_started_on")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (settingsError) {
+      if (isMissingPeriodFocusSettings(settingsError)) {
+        canSyncPeriodFocus = false;
+        setPeriodFocusSyncAvailable(false);
+        const fallback = await supabase
+          .from("user_settings")
+          .select("daily_goal,daily_goal_changed_on")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        data = fallback.data;
+        settingsError = fallback.error;
+      }
+
       if (isMissingUserSettings(settingsError)) {
         setSettingsAvailable(false);
         return;
       }
-      throw settingsError;
+
+      if (settingsError) throw settingsError;
+    } else {
+      setPeriodFocusSyncAvailable(true);
     }
 
     setSettingsAvailable(true);
@@ -545,16 +665,48 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       const nextGoal = Number(data.daily_goal);
       setDailyGoal(Number.isFinite(nextGoal) ? Math.max(1, Math.min(DAILY_GOAL_MAX, nextGoal)) : DAILY_GOAL_DEFAULT);
       setDailyGoalChangedOn(data.daily_goal_changed_on || "");
+      if (canSyncPeriodFocus) {
+        const remoteFocus = focusFromSettingsRow(data);
+        const localFocus = readStoredPeriodFocus(user.id);
+        const nextFocus = !remoteFocus.text && localFocus.text ? localFocus : remoteFocus;
+        setPeriodFocus(nextFocus);
+        setPeriodFocusDraft(nextFocus.text);
+        setPeriodFocusMonthsDraft(nextFocus.months);
+        writeStoredPeriodFocus(user.id, nextFocus);
+        if (nextFocus === localFocus) await saveRemotePeriodFocusSettings(localFocus);
+      }
       return;
     }
 
-    const { error: insertError } = await supabase.from("user_settings").insert({
+    const settingsPayload = {
       user_id: user.id,
       daily_goal: DAILY_GOAL_DEFAULT,
       daily_goal_changed_on: null,
-    });
+    };
+
+    if (canSyncPeriodFocus) {
+      settingsPayload.period_focus_text = null;
+      settingsPayload.period_focus_months = 3;
+      settingsPayload.period_focus_started_on = null;
+    }
+
+    const { error: insertError } = await supabase.from("user_settings").insert(settingsPayload);
 
     if (insertError) {
+      if (isMissingPeriodFocusSettings(insertError)) {
+        setPeriodFocusSyncAvailable(false);
+        const fallbackInsert = await supabase.from("user_settings").insert({
+          user_id: user.id,
+          daily_goal: DAILY_GOAL_DEFAULT,
+          daily_goal_changed_on: null,
+        });
+        if (!fallbackInsert.error) {
+          setDailyGoal(DAILY_GOAL_DEFAULT);
+          setDailyGoalChangedOn("");
+          return;
+        }
+      }
+
       if (isMissingUserSettings(insertError)) {
         setSettingsAvailable(false);
         return;
@@ -564,7 +716,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     setDailyGoal(DAILY_GOAL_DEFAULT);
     setDailyGoalChangedOn("");
-  }, [isGuest, user.id]);
+  }, [isGuest, saveRemotePeriodFocusSettings, user.id]);
 
   function showUndoToast(message, onUndo) {
     if (undoTimerRef.current) {
@@ -816,6 +968,14 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }, [laterTagSort, user.id]);
 
   useEffect(() => {
+    const storedFocus = readStoredPeriodFocus(user.id);
+    setPeriodFocus(storedFocus);
+    setPeriodFocusDraft(storedFocus.text);
+    setPeriodFocusMonthsDraft(storedFocus.months);
+    setPeriodFocusOpen(false);
+  }, [user.id]);
+
+  useEffect(() => {
     if (guestSyncPromptHandled || guestSyncPromptVisible || guestSyncPromptSnoozed()) return undefined;
 
     if (!isGuest) {
@@ -933,12 +1093,27 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     let cancelled = false;
 
-    async function refreshDailyGoalSettings() {
-      const { data, error: settingsError } = await supabase
+    async function refreshSyncedSettings() {
+      let canSyncPeriodFocus = true;
+      let { data, error: settingsError } = await supabase
         .from("user_settings")
-        .select("daily_goal,daily_goal_changed_on")
+        .select("daily_goal,daily_goal_changed_on,period_focus_text,period_focus_months,period_focus_started_on")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      if (settingsError && isMissingPeriodFocusSettings(settingsError)) {
+        canSyncPeriodFocus = false;
+        setPeriodFocusSyncAvailable(false);
+        const fallback = await supabase
+          .from("user_settings")
+          .select("daily_goal,daily_goal_changed_on")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        data = fallback.data;
+        settingsError = fallback.error;
+      } else if (!settingsError) {
+        setPeriodFocusSyncAvailable(true);
+      }
 
       if (cancelled || settingsError || !data) return;
 
@@ -959,11 +1134,19 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       setDailyGoal(remoteGoal);
       setDailyGoalChangedOn(remoteChangedOn);
+
+      if (canSyncPeriodFocus) {
+        const remoteFocus = focusFromSettingsRow(data);
+        setPeriodFocus(remoteFocus);
+        setPeriodFocusDraft(remoteFocus.text);
+        setPeriodFocusMonthsDraft(remoteFocus.months);
+        writeStoredPeriodFocus(user.id, remoteFocus);
+      }
     }
 
     async function refreshRemoteData() {
       try {
-        await Promise.all([loadItems(), refreshDailyGoalSettings()]);
+        await Promise.all([loadItems(), refreshSyncedSettings()]);
       } catch (err) {
         // Background sync should not interrupt the current session.
       }
@@ -1957,6 +2140,52 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     await supabase.auth.signOut();
   }
 
+  async function savePeriodFocus(event) {
+    event.preventDefault();
+
+    const text = periodFocusDraft.trim().slice(0, 80);
+    if (!text) {
+      await clearPeriodFocus();
+      return;
+    }
+
+    const months = PERIOD_FOCUS_MONTH_OPTIONS.includes(Number(periodFocusMonthsDraft))
+      ? Number(periodFocusMonthsDraft)
+      : 3;
+    const nextFocus = sanitizePeriodFocus({
+      text,
+      months,
+      startedAt: periodFocus.startedAt || getLocalDateKey(),
+    });
+
+    setPeriodFocus(nextFocus);
+    setPeriodFocusDraft(nextFocus.text);
+    setPeriodFocusMonthsDraft(nextFocus.months);
+    writeStoredPeriodFocus(user.id, nextFocus);
+    setPeriodFocusOpen(false);
+
+    try {
+      await saveRemotePeriodFocusSettings(nextFocus);
+    } catch (err) {
+      setError(err.message || "Couldn't sync your period focus yet.");
+    }
+  }
+
+  async function clearPeriodFocus() {
+    const nextFocus = getDefaultPeriodFocus();
+    setPeriodFocus(nextFocus);
+    setPeriodFocusDraft("");
+    setPeriodFocusMonthsDraft(3);
+    removeStoredPeriodFocus(user.id);
+    setPeriodFocusOpen(false);
+
+    try {
+      await saveRemotePeriodFocusSettings(nextFocus);
+    } catch (err) {
+      setError(err.message || "Couldn't sync your period focus yet.");
+    }
+  }
+
   const accountLabel = isGuest ? "Guest mode" : user.email || "Account";
 
   function createAccountFromGuest() {
@@ -2002,6 +2231,64 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   <div className="title-row">
     <span className="desktop-title-logo brand-mark" aria-hidden="true" />
     <h1>The One Thing</h1>
+    <div className="period-focus">
+      <button
+        type="button"
+        className={`period-focus-trigger${periodFocus.text ? " active" : ""}`}
+        onClick={() => {
+          setPeriodFocusDraft(periodFocus.text);
+          setPeriodFocusMonthsDraft(periodFocus.months);
+          setPeriodFocusOpen((open) => !open);
+        }}
+        aria-expanded={periodFocusOpen}
+        aria-label="Set period focus"
+        title="Set the main focus for this season"
+      >
+        <Target size={14} aria-hidden="true" />
+        <span>
+          <strong>{periodFocus.text || "period focus"}</strong>
+          <small>{periodFocus.text ? `${periodFocus.months} month priority` : "3-12 months"}</small>
+        </span>
+      </button>
+
+      {periodFocusOpen && (
+        <form className="period-focus-panel" onSubmit={savePeriodFocus}>
+          <label>
+            <span>Main focus</span>
+            <input
+              value={periodFocusDraft}
+              onChange={(event) => setPeriodFocusDraft(event.target.value)}
+              maxLength={80}
+              placeholder="what gets the long arc?"
+              autoFocus
+            />
+          </label>
+          <label>
+            <span>For</span>
+            <select
+              value={periodFocusMonthsDraft}
+              onChange={(event) => setPeriodFocusMonthsDraft(Number(event.target.value))}
+            >
+              {PERIOD_FOCUS_MONTH_OPTIONS.map((months) => (
+                <option key={months} value={months}>
+                  {months} months
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>Detours are allowed. This is just the thing that keeps getting first claim.</p>
+          <div className="period-focus-actions">
+            <button type="button" onClick={clearPeriodFocus}>
+              clear
+            </button>
+            <button type="submit">
+              <Check size={13} aria-hidden="true" />
+              save
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
     <div className="title-actions">
       <button
         type="button"

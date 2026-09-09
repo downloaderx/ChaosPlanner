@@ -1,11 +1,23 @@
--- Run this once in the Supabase SQL editor to sync daily goal across devices.
+-- Run this once in the Supabase SQL editor to sync daily goal and period focus across devices.
 
 create table if not exists public.user_settings (
   user_id uuid primary key references auth.users(id) on delete cascade,
   daily_goal int not null default 3 check (daily_goal between 1 and 20),
   daily_goal_changed_on date null,
+  period_focus_text text null,
+  period_focus_months int not null default 3 check (period_focus_months in (3, 6, 9, 12)),
+  period_focus_started_on date null,
   updated_at timestamptz not null default now()
 );
+
+alter table public.user_settings
+add column if not exists period_focus_text text null;
+
+alter table public.user_settings
+add column if not exists period_focus_months int not null default 3 check (period_focus_months in (3, 6, 9, 12));
+
+alter table public.user_settings
+add column if not exists period_focus_started_on date null;
 
 alter table public.user_settings enable row level security;
 
