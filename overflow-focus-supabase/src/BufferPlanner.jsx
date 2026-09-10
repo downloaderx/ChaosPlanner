@@ -768,6 +768,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const pomodoroAudioGainRef = useRef(null);
   const pomodoroAudioSourceRef = useRef(null);
   const audioStartTokenRef = useRef(0);
+  const pomodoroFinishedFromTickRef = useRef(false);
   const pomodoroRunningRef = useRef(pomodoroRunning);
   const pomodoroMusicEnabledRef = useRef(pomodoroMusicEnabled);
   const pomodoroVolumeRef = useRef(pomodoroVolume);
@@ -1362,7 +1363,13 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (!pomodoroRunning) return undefined;
 
     const timerId = window.setInterval(() => {
-      setPomodoroSeconds((seconds) => Math.max(seconds - 1, 0));
+      setPomodoroSeconds((seconds) => {
+        const nextSeconds = Math.max(seconds - 1, 0);
+        if (seconds > 0 && nextSeconds === 0) {
+          pomodoroFinishedFromTickRef.current = true;
+        }
+        return nextSeconds;
+      });
     }, 1000);
 
     return () => window.clearInterval(timerId);
@@ -1372,7 +1379,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (!pomodoroRunning || pomodoroSeconds !== 0) return;
 
     setPomodoroRunning(false);
-    playPomodoroChime();
+    if (pomodoroFinishedFromTickRef.current) {
+      playPomodoroChime();
+      pomodoroFinishedFromTickRef.current = false;
+    }
     setPomodoroMode((mode) => {
       const nextMode = getNextPomodoroMode(mode);
       setPomodoroSeconds(getPomodoroDuration(nextMode));
@@ -1393,7 +1403,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (!pomodoroRunning) return;
 
     if (pomodoroMusicEnabled) {
-      startPomodoroMusic();
+      startPomodoroMusic().then((started) => {
+        if (!started && pomodoroRunningRef.current && pomodoroMusicEnabledRef.current) {
+          setPomodoroReloadNotice(true);
+        }
+      });
       return;
     }
 
@@ -1403,6 +1417,22 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   useEffect(() => {
     if (!pomodoroRunning) stopPomodoroMusic();
   }, [pomodoroRunning]);
+
+  useEffect(() => {
+    if (!pomodoroReloadNotice || !pomodoroRunning || !pomodoroMusicEnabled) return undefined;
+
+    const resume = () => {
+      resumePomodoroMusicFromInteraction();
+    };
+
+    window.addEventListener("pointerdown", resume, { capture: true });
+    window.addEventListener("keydown", resume, { capture: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", resume, { capture: true });
+      window.removeEventListener("keydown", resume, { capture: true });
+    };
+  }, [pomodoroMusicEnabled, pomodoroReloadNotice, pomodoroRunning]);
 
   useEffect(() => () => stopPomodoroMusic(), []);
 
@@ -1606,18 +1636,21 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   function setPomodoroPreset(mode) {
     if (mode === "break" && !breakUnlocked) return;
 
+    pomodoroFinishedFromTickRef.current = false;
     setPomodoroMode(mode);
     setPomodoroRunning(false);
     setPomodoroSeconds(getPomodoroDuration(mode));
   }
 
   function resetPomodoro() {
+    pomodoroFinishedFromTickRef.current = false;
     setPomodoroRunning(false);
     stopPomodoroMusic();
     setPomodoroSeconds(getPomodoroDuration(pomodoroMode));
   }
 
   function unlockBreakAfterDone() {
+    pomodoroFinishedFromTickRef.current = false;
     setPomodoroRunning(false);
     stopPomodoroMusic();
     setPomodoroMode("break");
@@ -1714,7 +1747,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }
 
   async function startPomodoroMusic(forceEnabled = false) {
-    if ((!forceEnabled && !pomodoroMusicEnabledRef.current) || typeof window === "undefined") return;
+    if ((!forceEnabled && !pomodoroMusicEnabledRef.current) || typeof window === "undefined") return false;
 
     const startToken = (audioStartTokenRef.current += 1);
 
@@ -1744,20 +1777,30 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       !pomodoroMusicEnabledRef.current ||
       !pomodoroRunningRef.current
     ) {
-      return;
+      return false;
     }
 
     try {
       await audio.play();
     } catch (err) {
       // Mobile browsers may block playback until the next direct tap.
+      return false;
     }
 
-    if (startToken !== audioStartTokenRef.current) return;
+    if (startToken !== audioStartTokenRef.current) return false;
 
     if (!pomodoroMusicEnabledRef.current || !pomodoroRunningRef.current) {
       audio.pause();
+      return false;
     }
+
+    setPomodoroReloadNotice(false);
+    return true;
+  }
+
+  async function resumePomodoroMusicFromInteraction() {
+    if (!pomodoroReloadNotice || !pomodoroRunningRef.current || !pomodoroMusicEnabledRef.current) return;
+    await startPomodoroMusic(true);
   }
 
   async function togglePomodoroRunning() {
@@ -1767,7 +1810,8 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setPomodoroRunning(shouldRun);
 
     if (shouldRun) {
-      await startPomodoroMusic();
+      const started = await startPomodoroMusic(true);
+      if (!started) setPomodoroReloadNotice(true);
     } else {
       stopPomodoroMusic();
     }
@@ -1776,7 +1820,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   async function togglePomodoroMusic() {
     if (pomodoroReloadNotice && pomodoroMusicEnabledRef.current) {
       setPomodoroReloadNotice(false);
-      if (pomodoroRunningRef.current) await startPomodoroMusic(true);
+      if (pomodoroRunningRef.current) {
+        const started = await startPomodoroMusic(true);
+        if (!started) setPomodoroReloadNotice(true);
+      }
       return;
     }
 
@@ -1786,7 +1833,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setPomodoroMusicEnabled(shouldEnable);
 
     if (shouldEnable) {
-      if (pomodoroRunningRef.current) await startPomodoroMusic(true);
+      if (pomodoroRunningRef.current) {
+        const started = await startPomodoroMusic(true);
+        if (!started) setPomodoroReloadNotice(true);
+      }
       return;
     }
 
