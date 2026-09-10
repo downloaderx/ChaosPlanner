@@ -48,6 +48,7 @@ const GUEST_SYNC_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
 const GUEST_SYNC_PROMPT_MIN_ITEMS = 3;
 const REMOTE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
 const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
+const ITEM_IMAGE_STORAGE_PREFIX = "the-one-thing-item-images";
 const QUOTE_NOTES_STORAGE_PREFIX = "the-one-thing-quote-notes";
 const QUOTE_ROTATION_STORAGE_PREFIX = "the-one-thing-quote-rotation";
 const QUOTE_ROTATION_MINUTE_OPTIONS = [1, 3, 5, 10, 15, 30];
@@ -150,6 +151,51 @@ function writeGuestItems(items) {
   } catch (err) {
     throw new Error("Could not save guest data in this browser.");
   }
+}
+
+function getItemImageStorageKey(userId) {
+  return `${ITEM_IMAGE_STORAGE_PREFIX}-${userId}`;
+}
+
+function readStoredItemImages(userId) {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getItemImageStorageKey(userId)));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+function writeStoredItemImages(userId, images) {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(getItemImageStorageKey(userId), JSON.stringify(images));
+  } catch (err) {
+    throw new Error("Could not save this image in this browser.");
+  }
+}
+
+function rememberStoredItemImage(userId, itemId, imageUrl, imageAlt = "task image") {
+  if (!itemId || !imageUrl) return;
+  const images = readStoredItemImages(userId);
+  images[itemId] = { imageUrl, imageAlt };
+  writeStoredItemImages(userId, images);
+}
+
+function applyStoredItemImages(items, userId) {
+  const storedImages = readStoredItemImages(userId);
+  return items.map((item) => {
+    const storedImage = storedImages[item.id];
+    if (!storedImage || item.imageUrl) return item;
+    return {
+      ...item,
+      imageUrl: storedImage.imageUrl || "",
+      imageAlt: storedImage.imageAlt || item.imageAlt,
+    };
+  });
 }
 
 function getQuoteNotesStorageKey(userId) {
@@ -682,6 +728,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [trashOpen, setTrashOpen] = useState(false);
   const [openProjectStat, setOpenProjectStat] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedItemImage, setSelectedItemImage] = useState(null);
   const [quoteNotes, setQuoteNotes] = useState(() => readStoredQuoteNotes(user.id));
   const [quoteDraft, setQuoteDraft] = useState("");
   const [draftImage, setDraftImage] = useState("");
@@ -1047,7 +1094,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         setTrashAvailable(true);
 
         let localRows = readGuestItems();
-        const normalized = localRows.map(normalizeItem);
+        const normalized = applyStoredItemImages(localRows.map(normalizeItem), user.id);
         const activeItems = normalized.filter((item) => !item.deletedAt);
         const nextTrash = normalized.filter((item) => item.deletedAt).sort((a, b) => sortNewestFirst(a, b, "deletedAt"));
         const nextThoughts = activeItems.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
@@ -1131,7 +1178,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       if (loadError) throw loadError;
 
-      const normalized = (data || []).map(normalizeItem);
+      const normalized = applyStoredItemImages((data || []).map(normalizeItem), user.id);
       const activeItems = normalized.filter((item) => !item.deletedAt);
       const nextTrash = normalized.filter((item) => item.deletedAt).sort((a, b) => sortNewestFirst(a, b, "deletedAt"));
       const nextThoughts = activeItems.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
@@ -1779,17 +1826,24 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         payload.image_alt = text || "task image";
       }
 
-      const { error: insertError } = await supabase.from("items").insert(payload);
+      const { data: insertedItem, error: insertError } = await supabase.from("items").insert(payload).select("id").single();
 
       if (insertError) {
         if (imageUrl && isMissingItemImageColumns(insertError)) {
           setItemImagesAvailable(false);
           const { image_url, image_alt, ...fallbackPayload } = payload;
-          const { error: retryError } = await supabase.from("items").insert(fallbackPayload);
+          const { data: fallbackItem, error: retryError } = await supabase
+            .from("items")
+            .insert(fallbackPayload)
+            .select("id")
+            .single();
           if (retryError) throw retryError;
+          rememberStoredItemImage(user.id, fallbackItem?.id, imageUrl, text || "task image");
         } else {
           throw insertError;
         }
+      } else if (imageUrl && insertedItem?.id) {
+        rememberStoredItemImage(user.id, insertedItem.id, imageUrl, text || "task image");
       }
 
       afterSave?.();
@@ -2079,7 +2133,18 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     return (
       <div className="item-display">
-        {item.imageUrl && <img className="item-image" src={item.imageUrl} alt={item.imageAlt} />}
+        {item.imageUrl && (
+          <button
+            type="button"
+            className="item-image-open"
+            onClick={() => setSelectedItemImage(item)}
+            aria-label={`Open image for ${item.text || "image note"}`}
+            title="Open image"
+          >
+            <ImageIcon size={13} aria-hidden="true" />
+            image
+          </button>
+        )}
         {item.text ? <span className="item-text">{item.text}</span> : <span className="item-text muted">image note</span>}
       </div>
     );
@@ -3026,6 +3091,29 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 {renderProjectItemList(selectedProjectItems.cleared, "No cleared tasks yet.", "finishedAt")}
               </section>
             </div>
+          </section>
+        </div>
+      )}
+
+      {selectedItemImage && (
+        <div className="image-modal-backdrop" role="presentation" onClick={() => setSelectedItemImage(null)}>
+          <section
+            className="image-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="image-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="image-modal-header">
+              <div>
+                <p>reference image</p>
+                <h2 id="image-modal-title">{selectedItemImage.text || "image note"}</h2>
+              </div>
+              <button type="button" onClick={() => setSelectedItemImage(null)} aria-label="Close image preview">
+                <X size={15} />
+              </button>
+            </div>
+            <img src={selectedItemImage.imageUrl} alt={selectedItemImage.imageAlt} />
           </section>
         </div>
       )}
