@@ -2827,7 +2827,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 value={quoteDraft}
                 onChange={(event) => setQuoteDraft(event.target.value)}
                 maxLength={220}
-                placeholder="Dovolit si znova sa najst..."
+                placeholder="quote, rada, vlastna myslienka..."
                 disabled={busy}
               />
               <button type="submit" disabled={busy || !quoteDraft.trim()}>
