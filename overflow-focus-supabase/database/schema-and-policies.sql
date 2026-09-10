@@ -7,6 +7,8 @@ create table if not exists public.items (
   column text not null check (column in ('thoughts', 'setaside', 'focus', 'log')),
   text text not null,
   project_tag text null,
+  image_url text null,
+  image_alt text null,
   started_at timestamptz not null default now(),
   finished_at timestamptz null,
   deleted_at timestamptz null
@@ -17,6 +19,12 @@ add column if not exists project_tag text null;
 
 alter table public.items
 add column if not exists deleted_at timestamptz null;
+
+alter table public.items
+add column if not exists image_url text null;
+
+alter table public.items
+add column if not exists image_alt text null;
 
 alter table public.items enable row level security;
 
@@ -45,16 +53,8 @@ create table if not exists public.quote_notes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   text text not null,
-  image_url text,
-  image_alt text,
   created_at timestamptz not null default now()
 );
-
-alter table public.quote_notes
-add column if not exists image_url text;
-
-alter table public.quote_notes
-add column if not exists image_alt text;
 
 alter table public.quote_notes enable row level security;
 

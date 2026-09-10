@@ -4,16 +4,8 @@ create table if not exists public.quote_notes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   text text not null,
-  image_url text,
-  image_alt text,
   created_at timestamptz not null default now()
 );
-
-alter table public.quote_notes
-add column if not exists image_url text;
-
-alter table public.quote_notes
-add column if not exists image_alt text;
 
 alter table public.quote_notes enable row level security;
 

@@ -51,8 +51,8 @@ const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
 const QUOTE_NOTES_STORAGE_PREFIX = "the-one-thing-quote-notes";
 const QUOTE_ROTATION_STORAGE_PREFIX = "the-one-thing-quote-rotation";
 const QUOTE_ROTATION_MINUTE_OPTIONS = [1, 3, 5, 10, 15, 30];
-const QUOTE_IMAGE_MAX_SIZE = 900;
-const QUOTE_IMAGE_QUALITY = 0.82;
+const ITEM_IMAGE_MAX_SIZE = 900;
+const ITEM_IMAGE_QUALITY = 0.82;
 const PERIOD_FOCUS_STORAGE_PREFIX = "the-one-thing-period-focus";
 const PERIOD_FOCUS_MONTH_OPTIONS = [3, 6, 9, 12];
 const PERIOD_FOCUS_CHANGE_LIMIT = 2;
@@ -91,11 +91,15 @@ function rotationFromId(id) {
 }
 
 function normalizeItem(row) {
+  const text = String(row.text || "").trim().slice(0, 220);
+  const imageUrl = String(row.image_url || row.imageUrl || "").trim();
   return {
     id: row.id,
-    text: row.text,
+    text,
     column: row.column,
     projectTag: row.project_tag || "",
+    imageUrl,
+    imageAlt: String(row.image_alt || row.imageAlt || text || "task image").trim().slice(0, 120),
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     deletedAt: row.deleted_at || null,
@@ -107,16 +111,20 @@ function createLocalItem({
   column,
   text,
   projectTag = "",
+  imageUrl = "",
   startedAt = new Date().toISOString(),
   finishedAt = null,
   deletedAt = null,
 }) {
+  const normalizedText = String(text || "").trim().slice(0, 220);
   return {
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     user_id: "guest",
     column,
-    text,
+    text: normalizedText,
     project_tag: projectTag || null,
+    image_url: String(imageUrl || "").trim() || null,
+    image_alt: normalizedText || "task image",
     started_at: startedAt,
     finished_at: finishedAt,
     deleted_at: deletedAt,
@@ -149,28 +157,26 @@ function getQuoteNotesStorageKey(userId) {
 }
 
 function normalizeQuoteNote(row) {
-  const imageUrl = String(row.image_url || row.imageUrl || "").trim();
   const text = String(row.text || "").trim().slice(0, 220);
   return {
     id: row.id,
     text,
-    imageUrl,
-    imageAlt: String(row.image_alt || row.imageAlt || text || "quote image").trim().slice(0, 120),
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
   };
 }
 
-function hasQuoteNoteContent(note) {
-  return Boolean(note.text || note.imageUrl);
+function hasItemContent(item) {
+  return Boolean(item.text || item.imageUrl);
 }
 
-function createLocalQuoteNote(text, imageUrl = "") {
-  const normalizedText = String(text || "").trim().slice(0, 220);
+function hasQuoteNoteContent(note) {
+  return Boolean(note.text);
+}
+
+function createLocalQuoteNote(text) {
   return {
     id: `quote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    text: normalizedText,
-    imageUrl: String(imageUrl || "").trim(),
-    imageAlt: normalizedText || "quote image",
+    text: String(text || "").trim().slice(0, 220),
     createdAt: new Date().toISOString(),
   };
 }
@@ -203,7 +209,7 @@ function readStoredQuoteRotationMinutes(userId) {
   return QUOTE_ROTATION_MINUTE_OPTIONS.includes(stored) ? stored : 5;
 }
 
-function resizeQuoteImage(file) {
+function resizeItemImage(file) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type?.startsWith("image/")) {
       reject(new Error("Please choose an image file."));
@@ -216,7 +222,7 @@ function resizeQuoteImage(file) {
       const image = new Image();
       image.onerror = () => reject(new Error("Could not prepare that image."));
       image.onload = () => {
-        const scale = Math.min(1, QUOTE_IMAGE_MAX_SIZE / Math.max(image.width, image.height));
+        const scale = Math.min(1, ITEM_IMAGE_MAX_SIZE / Math.max(image.width, image.height));
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(image.width * scale));
         canvas.height = Math.max(1, Math.round(image.height * scale));
@@ -227,7 +233,7 @@ function resizeQuoteImage(file) {
         }
 
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", QUOTE_IMAGE_QUALITY));
+        resolve(canvas.toDataURL("image/jpeg", ITEM_IMAGE_QUALITY));
       };
       image.src = String(reader.result || "");
     };
@@ -247,20 +253,26 @@ function snoozeGuestSyncPrompt() {
   localStorage.setItem(GUEST_SYNC_PROMPT_SNOOZE_KEY, String(Date.now()));
 }
 
-function prepareGuestItemsForInsert(items, userId, includeProjectTag = true) {
+function prepareGuestItemsForInsert(items, userId, includeProjectTag = true, includeImages = true) {
   return items
-    .filter((item) => item?.text && ["thoughts", "setaside", "focus", "log"].includes(item.column))
+    .filter((item) => hasItemContent(normalizeItem(item)) && ["thoughts", "setaside", "focus", "log"].includes(item.column))
     .map((item) => {
+      const normalized = normalizeItem(item);
       const row = {
         user_id: userId,
         column: item.column,
-        text: item.text,
+        text: normalized.text,
         started_at: item.started_at || new Date().toISOString(),
         finished_at: item.finished_at || null,
       };
 
       if (includeProjectTag) {
         row.project_tag = item.project_tag || null;
+      }
+
+      if (includeImages) {
+        row.image_url = normalized.imageUrl || null;
+        row.image_alt = normalized.imageAlt || null;
       }
 
       return row;
@@ -339,7 +351,7 @@ function isMissingQuoteNotes(error) {
   return error?.code === "42P01" || message.includes("quote_notes");
 }
 
-function isMissingQuoteImageColumns(error) {
+function isMissingItemImageColumns(error) {
   const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
   return error?.code === "42703" || message.includes("image_url") || message.includes("image_alt");
 }
@@ -650,6 +662,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [projectTagAvailable, setProjectTagAvailable] = useState(true);
+  const [itemImagesAvailable, setItemImagesAvailable] = useState(true);
   const [trashAvailable, setTrashAvailable] = useState(true);
   const [quoteNotesAvailable, setQuoteNotesAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -671,7 +684,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [selectedProject, setSelectedProject] = useState(null);
   const [quoteNotes, setQuoteNotes] = useState(() => readStoredQuoteNotes(user.id));
   const [quoteDraft, setQuoteDraft] = useState("");
-  const [quoteImageDraft, setQuoteImageDraft] = useState("");
+  const [draftImage, setDraftImage] = useState("");
   const [quotePanelOpen, setQuotePanelOpen] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [quoteRotationMinutes, setQuoteRotationMinutes] = useState(() => readStoredQuoteRotationMinutes(user.id));
@@ -991,7 +1004,9 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     const guestItems = readGuestItems();
     if (guestItems.length === 0) return;
 
-    let rows = prepareGuestItemsForInsert(guestItems, user.id);
+    let includeProjectTag = true;
+    let includeImages = true;
+    let rows = prepareGuestItemsForInsert(guestItems, user.id, includeProjectTag, includeImages);
     if (rows.length === 0) {
       localStorage.removeItem(GUEST_ITEMS_STORAGE_KEY);
       return;
@@ -1000,10 +1015,19 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     let { error: migrationError } = await supabase.from("items").insert(rows);
 
     if (migrationError && isMissingProjectTagColumn(migrationError)) {
-      rows = prepareGuestItemsForInsert(guestItems, user.id, false);
+      includeProjectTag = false;
+      rows = prepareGuestItemsForInsert(guestItems, user.id, includeProjectTag, includeImages);
       const retry = await supabase.from("items").insert(rows);
       migrationError = retry.error;
       setProjectTagAvailable(false);
+    }
+
+    if (migrationError && isMissingItemImageColumns(migrationError)) {
+      includeImages = false;
+      rows = prepareGuestItemsForInsert(guestItems, user.id, includeProjectTag, includeImages);
+      const retry = await supabase.from("items").insert(rows);
+      migrationError = retry.error;
+      setItemImagesAvailable(false);
     }
 
     if (migrationError) throw migrationError;
@@ -1019,6 +1043,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       if (isGuest) {
         setProjectTagAvailable(true);
+        setItemImagesAvailable(true);
         setTrashAvailable(true);
 
         let localRows = readGuestItems();
@@ -1055,9 +1080,24 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       let { data, error: loadError } = await supabase
         .from("items")
-        .select("id,user_id,column,text,project_tag,started_at,finished_at,deleted_at")
+        .select("id,user_id,column,text,project_tag,image_url,image_alt,started_at,finished_at,deleted_at")
         .eq("user_id", user.id)
         .order("started_at", { ascending: false });
+
+      if (loadError && isMissingItemImageColumns(loadError)) {
+        setItemImagesAvailable(false);
+
+        const fallback = await supabase
+          .from("items")
+          .select("id,user_id,column,text,project_tag,started_at,finished_at,deleted_at")
+          .eq("user_id", user.id)
+          .order("started_at", { ascending: false });
+
+        data = fallback.data;
+        loadError = fallback.error;
+      } else if (!loadError) {
+        setItemImagesAvailable(true);
+      }
 
       if (loadError && isMissingDeletedAtColumn(loadError)) {
         setTrashAvailable(false);
@@ -1199,7 +1239,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
   useEffect(() => {
     setQuoteNotes(readStoredQuoteNotes(user.id));
-    setQuoteImageDraft("");
+    setDraftImage("");
     setQuoteIndex(0);
     setQuotePanelOpen(false);
     setQuoteRotationMinutes(readStoredQuoteRotationMinutes(user.id));
@@ -1706,15 +1746,16 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     stopPomodoroMusic();
   }
 
-  function addLiveThought(textValue, projectValue = "", afterSave) {
+  function addLiveThought(textValue, projectValue = "", imageValue = "", afterSave) {
     const text = textValue.trim();
     const projectTag = normalizeProjectTag(projectValue);
-    if (!text) return;
+    const imageUrl = String(imageValue || "").trim();
+    if (!text && !imageUrl) return;
 
     runMutation(async () => {
       if (isGuest) {
         const items = readGuestItems();
-        items.unshift(createLocalItem({ column: "thoughts", text, projectTag }));
+        items.unshift(createLocalItem({ column: "thoughts", text, projectTag, imageUrl }));
         writeGuestItems(items);
         afterSave?.();
         await loadItems();
@@ -1733,9 +1774,23 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         payload.project_tag = projectTag || null;
       }
 
+      if (itemImagesAvailable && imageUrl) {
+        payload.image_url = imageUrl;
+        payload.image_alt = text || "task image";
+      }
+
       const { error: insertError } = await supabase.from("items").insert(payload);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (imageUrl && isMissingItemImageColumns(insertError)) {
+          setItemImagesAvailable(false);
+          const { image_url, image_alt, ...fallbackPayload } = payload;
+          const { error: retryError } = await supabase.from("items").insert(fallbackPayload);
+          if (retryError) throw retryError;
+        } else {
+          throw insertError;
+        }
+      }
 
       afterSave?.();
       await loadItems();
@@ -1744,9 +1799,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
   function addThought(event) {
     event?.preventDefault?.();
-    addLiveThought(draft, draftProject, () => {
+    addLiveThought(draft, draftProject, draftImage, () => {
       setDraft("");
       setDraftProject("");
+      setDraftImage("");
       inputRef.current?.focus();
     });
   }
@@ -1823,7 +1879,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   }
 
   function addUnstuckSuggestionToLive(suggestion) {
-    addLiveThought(suggestion.text, suggestion.projectTag, () => {
+    addLiveThought(suggestion.text, suggestion.projectTag, "", () => {
       setUnstuckSuggestions((suggestions) => suggestions.filter((item) => item.id !== suggestion.id));
     });
   }
@@ -2022,7 +2078,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     }
 
     return (
-      <span className="item-text">{item.text}</span>
+      <div className="item-display">
+        {item.imageUrl && <img className="item-image" src={item.imageUrl} alt={item.imageAlt} />}
+        {item.text ? <span className="item-text">{item.text}</span> : <span className="item-text muted">image note</span>}
+      </div>
     );
   }
 
@@ -2036,7 +2095,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         onClick={() => startItemEdit(item)}
         disabled={busy}
         title="Edit entry"
-        aria-label={`Edit ${item.text}`}
+        aria-label={`Edit ${item.text || "image note"}`}
       >
         <Pencil size={13} />
       </button>
@@ -2048,7 +2107,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     return items.map((item) => (
       <div key={`${item.id}-${item[dateField] || item.startedAt || item.finishedAt || item.text}`} className="project-modal-task">
-        <span>{item.text}</span>
+        <span>{item.text || "image note"}</span>
         <small>{timeAgo(item[dateField] || item.startedAt)}</small>
       </div>
     ));
@@ -2480,13 +2539,13 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setQuoteIndex((index) => (index + 1) % quoteNotes.length);
   }
 
-  async function handleQuoteImageChange(event) {
+  async function handleDraftImageChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      const imageUrl = await resizeQuoteImage(file);
-      setQuoteImageDraft(imageUrl);
+      const imageUrl = await resizeItemImage(file);
+      setDraftImage(imageUrl);
     } catch (err) {
       setError(err.message || "Could not add that image.");
     } finally {
@@ -2498,30 +2557,23 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     event.preventDefault();
 
     const text = quoteDraft.trim().replace(/\s+/g, " ").slice(0, 220);
-    const imageUrl = quoteImageDraft;
-    if (!text && !imageUrl) return;
+    if (!text) return;
 
     runMutation(async () => {
       if (isGuest || !quoteNotesAvailable) {
-        const nextNotes = [createLocalQuoteNote(text, imageUrl), ...quoteNotes];
+        const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
         writeStoredQuoteNotes(user.id, nextNotes);
         setQuoteNotes(nextNotes);
       } else {
-        const payload = {
+        const { error: insertError } = await supabase.from("quote_notes").insert({
           user_id: user.id,
           text,
-        };
-        if (imageUrl) {
-          payload.image_url = imageUrl;
-          payload.image_alt = text || "quote image";
-        }
-
-        const { error: insertError } = await supabase.from("quote_notes").insert(payload);
+        });
 
         if (insertError) {
-          if (isMissingQuoteNotes(insertError) || (imageUrl && isMissingQuoteImageColumns(insertError))) {
+          if (isMissingQuoteNotes(insertError)) {
             setQuoteNotesAvailable(false);
-            const nextNotes = [createLocalQuoteNote(text, imageUrl), ...quoteNotes];
+            const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
             writeStoredQuoteNotes(user.id, nextNotes);
             setQuoteNotes(nextNotes);
           } else {
@@ -2533,7 +2585,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       }
 
       setQuoteDraft("");
-      setQuoteImageDraft("");
       setQuoteIndex(0);
     });
   }
@@ -2866,12 +2917,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           <div>
             <p className="quote-note-kicker">quotes / rady / moje hlasky</p>
             {currentQuoteNote ? (
-              <div className="quote-note-display">
-                {currentQuoteNote.imageUrl && (
-                  <img className="quote-note-image" src={currentQuoteNote.imageUrl} alt={currentQuoteNote.imageAlt} />
-                )}
-                {currentQuoteNote.text && <blockquote>{currentQuoteNote.text}</blockquote>}
-              </div>
+              <blockquote>{currentQuoteNote.text}</blockquote>
             ) : (
               <blockquote>Add reminders that are not tasks. Tiny advice, your own lines, things worth hearing again.</blockquote>
             )}
@@ -2910,25 +2956,11 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 placeholder="quote, rada, vlastna myslienka..."
                 disabled={busy}
               />
-              <label className="quote-image-picker">
-                <ImageIcon size={14} />
-                image
-                <input type="file" accept="image/*" onChange={handleQuoteImageChange} disabled={busy} />
-              </label>
-              <button type="submit" disabled={busy || (!quoteDraft.trim() && !quoteImageDraft)}>
+              <button type="submit" disabled={busy || !quoteDraft.trim()}>
                 <Plus size={14} />
                 save
               </button>
             </form>
-            {quoteImageDraft && (
-              <div className="quote-image-preview">
-                <img src={quoteImageDraft} alt="Selected quote note" />
-                <button type="button" onClick={() => setQuoteImageDraft("")} disabled={busy}>
-                  <X size={13} />
-                  remove image
-                </button>
-              </div>
-            )}
             {currentQuoteNote && (
               <button type="button" className="quote-note-delete" onClick={deleteCurrentQuoteNote} disabled={busy}>
                 <Trash2 size={13} />
@@ -3081,9 +3113,23 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 <option key={project} value={project} />
               ))}
             </datalist>
-            <button type="submit" className="bp-icon-btn" aria-label="Add thought" disabled={busy}>
+            <label className="item-image-picker">
+              <ImageIcon size={15} aria-hidden="true" />
+              <span>image</span>
+              <input type="file" accept="image/*" onChange={handleDraftImageChange} disabled={busy} />
+            </label>
+            <button type="submit" className="bp-icon-btn" aria-label="Add thought" disabled={busy || (!draft.trim() && !draftImage)}>
               <Plus size={18} />
             </button>
+            {draftImage && (
+              <div className="item-image-preview">
+                <img src={draftImage} alt="Selected task reference" />
+                <button type="button" onClick={() => setDraftImage("")} disabled={busy}>
+                  <X size={13} />
+                  remove image
+                </button>
+              </div>
+            )}
             {!projectTagAvailable && (
               <p className="project-tag-notice">Run the project_tag SQL once to save project tags.</p>
             )}
@@ -3312,7 +3358,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     onClick={() => promote(item)}
                     className="bp-thought-btn promote-btn"
                     title="Focus in The One Thing player"
-                    aria-label={`Move ${item.text} to The One Thing player`}
+                    aria-label={`Move ${item.text || "image note"} to The One Thing player`}
                     disabled={busy || Boolean(focus)}
                   >
                     <Play size={13} />
@@ -3321,7 +3367,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     onClick={() => moveToSetAside(item)}
                     className="bp-thought-btn set-aside-btn"
                     title="Move to Set aside for later"
-                    aria-label={`Move ${item.text} to Set aside for later`}
+                    aria-label={`Move ${item.text || "image note"} to Set aside for later`}
                     disabled={busy}
                   >
                     <ArrowRight size={14} />
@@ -3330,7 +3376,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     onClick={() => removeItem(item.id)}
                     className="bp-thought-btn ghost-icon"
                     title="Discard"
-                    aria-label={`Discard ${item.text}`}
+                    aria-label={`Discard ${item.text || "image note"}`}
                     disabled={busy}
                   >
                     <X size={15} />
@@ -3377,7 +3423,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     onClick={() => bringBack(item)}
                     className="small-outline-btn soft bp-thought-btn"
                     title="Bring back to live thoughts"
-                    aria-label={`Bring ${item.text} back to live thoughts`}
+                    aria-label={`Bring ${item.text || "image note"} back to live thoughts`}
                     disabled={busy}
                   >
                     <ArrowLeft size={12} />
@@ -3386,7 +3432,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                     onClick={() => removeItem(item.id)}
                     className="ghost-icon"
                     title="Discard"
-                    aria-label={`Discard ${item.text}`}
+                    aria-label={`Discard ${item.text || "image note"}`}
                     disabled={busy}
                   >
                     <X size={14} />
@@ -3407,9 +3453,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
               <div className={focus ? "focus-spotlight" : "focus-spotlight empty"}>
                 {focus ? (
-                  <p className="focus-title">
-                    {focus.text}
-                  </p>
+                  <div className="focus-title">
+                    {focus.imageUrl && <img className="focus-image" src={focus.imageUrl} alt={focus.imageAlt} />}
+                    {focus.text && <p>{focus.text}</p>}
+                  </div>
               ) : (
                 <p className="focus-empty">Nothing chosen yet. Pick one thought from the left - just one - and it lands here.</p>
               )}
