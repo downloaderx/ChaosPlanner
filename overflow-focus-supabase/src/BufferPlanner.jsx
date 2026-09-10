@@ -25,6 +25,7 @@ import {
   Shuffle,
   Target,
   Quote,
+  Image as ImageIcon,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { ThemeSwitcher } from "./theme.jsx";
@@ -50,6 +51,8 @@ const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
 const QUOTE_NOTES_STORAGE_PREFIX = "the-one-thing-quote-notes";
 const QUOTE_ROTATION_STORAGE_PREFIX = "the-one-thing-quote-rotation";
 const QUOTE_ROTATION_MINUTE_OPTIONS = [1, 3, 5, 10, 15, 30];
+const QUOTE_IMAGE_MAX_SIZE = 900;
+const QUOTE_IMAGE_QUALITY = 0.82;
 const PERIOD_FOCUS_STORAGE_PREFIX = "the-one-thing-period-focus";
 const PERIOD_FOCUS_MONTH_OPTIONS = [3, 6, 9, 12];
 const PERIOD_FOCUS_CHANGE_LIMIT = 2;
@@ -146,17 +149,28 @@ function getQuoteNotesStorageKey(userId) {
 }
 
 function normalizeQuoteNote(row) {
+  const imageUrl = String(row.image_url || row.imageUrl || "").trim();
+  const text = String(row.text || "").trim().slice(0, 220);
   return {
     id: row.id,
-    text: String(row.text || "").trim().slice(0, 220),
+    text,
+    imageUrl,
+    imageAlt: String(row.image_alt || row.imageAlt || text || "quote image").trim().slice(0, 120),
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
   };
 }
 
-function createLocalQuoteNote(text) {
+function hasQuoteNoteContent(note) {
+  return Boolean(note.text || note.imageUrl);
+}
+
+function createLocalQuoteNote(text, imageUrl = "") {
+  const normalizedText = String(text || "").trim().slice(0, 220);
   return {
     id: `quote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    text: String(text || "").trim().slice(0, 220),
+    text: normalizedText,
+    imageUrl: String(imageUrl || "").trim(),
+    imageAlt: normalizedText || "quote image",
     createdAt: new Date().toISOString(),
   };
 }
@@ -166,7 +180,7 @@ function readStoredQuoteNotes(userId) {
 
   try {
     const parsed = JSON.parse(localStorage.getItem(getQuoteNotesStorageKey(userId)));
-    return Array.isArray(parsed) ? parsed.map(normalizeQuoteNote).filter((note) => note.text) : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeQuoteNote).filter(hasQuoteNoteContent) : [];
   } catch (err) {
     return [];
   }
@@ -176,7 +190,7 @@ function writeStoredQuoteNotes(userId, notes) {
   if (typeof window === "undefined") return;
 
   try {
-    localStorage.setItem(getQuoteNotesStorageKey(userId), JSON.stringify(notes.map(normalizeQuoteNote).filter((note) => note.text)));
+    localStorage.setItem(getQuoteNotesStorageKey(userId), JSON.stringify(notes.map(normalizeQuoteNote).filter(hasQuoteNoteContent)));
   } catch (err) {
     throw new Error("Could not save quote notes in this browser.");
   }
@@ -187,6 +201,38 @@ function readStoredQuoteRotationMinutes(userId) {
 
   const stored = Number(localStorage.getItem(`${QUOTE_ROTATION_STORAGE_PREFIX}-${userId}`));
   return QUOTE_ROTATION_MINUTE_OPTIONS.includes(stored) ? stored : 5;
+}
+
+function resizeQuoteImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type?.startsWith("image/")) {
+      reject(new Error("Please choose an image file."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read that image."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("Could not prepare that image."));
+      image.onload = () => {
+        const scale = Math.min(1, QUOTE_IMAGE_MAX_SIZE / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("Could not prepare that image."));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", QUOTE_IMAGE_QUALITY));
+      };
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function guestSyncPromptSnoozed() {
@@ -291,6 +337,11 @@ function isMissingDeletedAtColumn(error) {
 function isMissingQuoteNotes(error) {
   const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
   return error?.code === "42P01" || message.includes("quote_notes");
+}
+
+function isMissingQuoteImageColumns(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return error?.code === "42703" || message.includes("image_url") || message.includes("image_alt");
 }
 
 function isMissingUserSettings(error) {
@@ -620,6 +671,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [selectedProject, setSelectedProject] = useState(null);
   const [quoteNotes, setQuoteNotes] = useState(() => readStoredQuoteNotes(user.id));
   const [quoteDraft, setQuoteDraft] = useState("");
+  const [quoteImageDraft, setQuoteImageDraft] = useState("");
   const [quotePanelOpen, setQuotePanelOpen] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [quoteRotationMinutes, setQuoteRotationMinutes] = useState(() => readStoredQuoteRotationMinutes(user.id));
@@ -749,7 +801,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     const { data, error: quoteError } = await supabase
       .from("quote_notes")
-      .select("id,user_id,text,created_at")
+      .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -763,7 +815,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       throw quoteError;
     }
 
-    const nextNotes = (data || []).map(normalizeQuoteNote).filter((note) => note.text);
+    const nextNotes = (data || []).map(normalizeQuoteNote).filter(hasQuoteNoteContent);
     setQuoteNotesAvailable(true);
     setQuoteNotes(nextNotes);
     try {
@@ -1147,6 +1199,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
   useEffect(() => {
     setQuoteNotes(readStoredQuoteNotes(user.id));
+    setQuoteImageDraft("");
     setQuoteIndex(0);
     setQuotePanelOpen(false);
     setQuoteRotationMinutes(readStoredQuoteRotationMinutes(user.id));
@@ -2427,27 +2480,48 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setQuoteIndex((index) => (index + 1) % quoteNotes.length);
   }
 
+  async function handleQuoteImageChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const imageUrl = await resizeQuoteImage(file);
+      setQuoteImageDraft(imageUrl);
+    } catch (err) {
+      setError(err.message || "Could not add that image.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   async function addQuoteNote(event) {
     event.preventDefault();
 
     const text = quoteDraft.trim().replace(/\s+/g, " ").slice(0, 220);
-    if (!text) return;
+    const imageUrl = quoteImageDraft;
+    if (!text && !imageUrl) return;
 
     runMutation(async () => {
       if (isGuest || !quoteNotesAvailable) {
-        const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
+        const nextNotes = [createLocalQuoteNote(text, imageUrl), ...quoteNotes];
         writeStoredQuoteNotes(user.id, nextNotes);
         setQuoteNotes(nextNotes);
       } else {
-        const { error: insertError } = await supabase.from("quote_notes").insert({
+        const payload = {
           user_id: user.id,
           text,
-        });
+        };
+        if (imageUrl) {
+          payload.image_url = imageUrl;
+          payload.image_alt = text || "quote image";
+        }
+
+        const { error: insertError } = await supabase.from("quote_notes").insert(payload);
 
         if (insertError) {
-          if (isMissingQuoteNotes(insertError)) {
+          if (isMissingQuoteNotes(insertError) || (imageUrl && isMissingQuoteImageColumns(insertError))) {
             setQuoteNotesAvailable(false);
-            const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
+            const nextNotes = [createLocalQuoteNote(text, imageUrl), ...quoteNotes];
             writeStoredQuoteNotes(user.id, nextNotes);
             setQuoteNotes(nextNotes);
           } else {
@@ -2459,6 +2533,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       }
 
       setQuoteDraft("");
+      setQuoteImageDraft("");
       setQuoteIndex(0);
     });
   }
@@ -2790,11 +2865,16 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           <Quote size={16} aria-hidden="true" />
           <div>
             <p className="quote-note-kicker">quotes / rady / moje hlasky</p>
-            <blockquote>
-              {currentQuoteNote
-                ? currentQuoteNote.text
-                : "Add reminders that are not tasks. Tiny advice, your own lines, things worth hearing again."}
-            </blockquote>
+            {currentQuoteNote ? (
+              <div className="quote-note-display">
+                {currentQuoteNote.imageUrl && (
+                  <img className="quote-note-image" src={currentQuoteNote.imageUrl} alt={currentQuoteNote.imageAlt} />
+                )}
+                {currentQuoteNote.text && <blockquote>{currentQuoteNote.text}</blockquote>}
+              </div>
+            ) : (
+              <blockquote>Add reminders that are not tasks. Tiny advice, your own lines, things worth hearing again.</blockquote>
+            )}
           </div>
         </div>
         <div className="quote-note-controls">
@@ -2830,11 +2910,25 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
                 placeholder="quote, rada, vlastna myslienka..."
                 disabled={busy}
               />
-              <button type="submit" disabled={busy || !quoteDraft.trim()}>
+              <label className="quote-image-picker">
+                <ImageIcon size={14} />
+                image
+                <input type="file" accept="image/*" onChange={handleQuoteImageChange} disabled={busy} />
+              </label>
+              <button type="submit" disabled={busy || (!quoteDraft.trim() && !quoteImageDraft)}>
                 <Plus size={14} />
                 save
               </button>
             </form>
+            {quoteImageDraft && (
+              <div className="quote-image-preview">
+                <img src={quoteImageDraft} alt="Selected quote note" />
+                <button type="button" onClick={() => setQuoteImageDraft("")} disabled={busy}>
+                  <X size={13} />
+                  remove image
+                </button>
+              </div>
+            )}
             {currentQuoteNote && (
               <button type="button" className="quote-note-delete" onClick={deleteCurrentQuoteNote} disabled={busy}>
                 <Trash2 size={13} />
