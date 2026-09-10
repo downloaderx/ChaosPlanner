@@ -9143,3 +9143,78 @@ button.project-chip.editable:focus-visible {
     display: none !important;
   }
 }
+
+/* Final mobile breathing room: let visual themes show around the working panels. */
+@media (max-width: 640px) {
+  .planner-shell {
+    background-size: auto 100%, cover !important;
+  }
+
+  .planner-header,
+  [data-theme="pixel"] .planner-header,
+  [data-theme="ghibli"] .planner-header,
+  [data-theme="cyberpunk"] .planner-header,
+  [data-theme="brutalist"] .planner-header {
+    width: calc(100% - 24px) !important;
+    padding: 14px 0 8px !important;
+    margin: 0 auto !important;
+  }
+
+  .header-copy {
+    background: color-mix(in srgb, var(--surface) 84%, transparent) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  .quote-notes-strip {
+    width: calc(100% - 32px) !important;
+    margin: 10px auto 18px !important;
+    background: color-mix(in srgb, var(--surface) 84%, transparent) !important;
+  }
+
+  .bp-main,
+  [data-theme="pixel"] .bp-main,
+  [data-theme="ghibli"] .bp-main,
+  [data-theme="cyberpunk"] .bp-main,
+  [data-theme="brutalist"] .bp-main {
+    width: 100% !important;
+    gap: 20px !important;
+    padding: 0 14px 42px !important;
+  }
+
+  .panel,
+  .panel-white,
+  .panel-aside,
+  .focus-panel,
+  .log-panel {
+    width: min(100%, 380px) !important;
+    max-width: calc(100vw - 32px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 14px !important;
+    min-height: auto !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  .panel-white,
+  .log-panel {
+    background: color-mix(in srgb, var(--surface) 84%, transparent) !important;
+  }
+
+  .panel-aside {
+    background: color-mix(in srgb, var(--surface-soft) 82%, transparent) !important;
+  }
+
+  .focus-panel {
+    background: color-mix(in srgb, var(--focus-bg) 88%, transparent) !important;
+  }
+
+  .thought-list,
+  .aside-list {
+    max-height: min(390px, 54svh) !important;
+  }
+
+  .sticky-note,
+  .bp-aside-row {
+    background: color-mix(in srgb, var(--note-bg) 90%, transparent) !important;
+  }
+}
