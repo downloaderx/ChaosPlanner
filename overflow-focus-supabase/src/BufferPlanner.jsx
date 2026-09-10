@@ -870,8 +870,6 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   );
 
   const loadQuoteNotes = useCallback(async () => {
-    setQuoteIndex(0);
-
     if (isGuest) {
       setQuoteNotesAvailable(true);
       setQuoteNotes(readStoredQuoteNotes(user.id));
