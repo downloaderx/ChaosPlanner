@@ -51,9 +51,10 @@ const TAG_SORT_STORAGE_PREFIX = "the-one-thing-tag-sort";
 const ITEM_IMAGE_STORAGE_PREFIX = "the-one-thing-item-images";
 const QUOTE_NOTES_STORAGE_PREFIX = "the-one-thing-quote-notes";
 const QUOTE_ROTATION_STORAGE_PREFIX = "the-one-thing-quote-rotation";
+const QUOTE_ITEM_PREFIX = "[[quote-note]]";
 const QUOTE_ROTATION_MINUTE_OPTIONS = [1, 3, 5, 10, 15, 30];
-const ITEM_IMAGE_MAX_SIZE = 900;
-const ITEM_IMAGE_QUALITY = 0.82;
+const ITEM_IMAGE_MAX_SIZE = 640;
+const ITEM_IMAGE_QUALITY = 0.72;
 const PERIOD_FOCUS_STORAGE_PREFIX = "the-one-thing-period-focus";
 const PERIOD_FOCUS_MONTH_OPTIONS = [3, 6, 9, 12];
 const PERIOD_FOCUS_CHANGE_LIMIT = 2;
@@ -174,7 +175,7 @@ function writeStoredItemImages(userId, images) {
   try {
     localStorage.setItem(getItemImageStorageKey(userId), JSON.stringify(images));
   } catch (err) {
-    throw new Error("Could not save this image in this browser.");
+    // The remote row still exists; local image fallback can fail quietly if storage is full.
   }
 }
 
@@ -202,6 +203,10 @@ function getQuoteNotesStorageKey(userId) {
   return `${QUOTE_NOTES_STORAGE_PREFIX}-${userId}`;
 }
 
+function getQuoteMigrationStorageKey(userId, target) {
+  return `${QUOTE_NOTES_STORAGE_PREFIX}-${userId}-${target}-migrated`;
+}
+
 function normalizeQuoteNote(row) {
   const text = String(row.text || "").trim().slice(0, 220);
   return {
@@ -217,6 +222,19 @@ function hasItemContent(item) {
 
 function hasQuoteNoteContent(note) {
   return Boolean(note.text);
+}
+
+function encodeQuoteItemText(text) {
+  return `${QUOTE_ITEM_PREFIX}${String(text || "").trim().slice(0, 220)}`;
+}
+
+function decodeQuoteItemText(text) {
+  const value = String(text || "");
+  return value.startsWith(QUOTE_ITEM_PREFIX) ? value.slice(QUOTE_ITEM_PREFIX.length).trim() : "";
+}
+
+function isQuoteFallbackItem(row) {
+  return String(row?.text || "").startsWith(QUOTE_ITEM_PREFIX);
 }
 
 function createLocalQuoteNote(text) {
@@ -860,6 +878,80 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       return;
     }
 
+    async function loadFallbackQuoteItems() {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("items")
+        .select("id,text,started_at")
+        .eq("user_id", user.id)
+        .eq("column", "log")
+        .like("text", `${QUOTE_ITEM_PREFIX}%`)
+        .order("started_at", { ascending: false });
+
+      if (fallbackError) throw fallbackError;
+
+      let fallbackNotes = (fallbackData || [])
+        .map((row) => ({
+          id: row.id,
+          text: decodeQuoteItemText(row.text),
+          createdAt: row.started_at || new Date().toISOString(),
+        }))
+        .filter(hasQuoteNoteContent);
+
+      const localNotes = readStoredQuoteNotes(user.id);
+      const migrationKey = getQuoteMigrationStorageKey(user.id, "items-fallback");
+      const migrated = typeof window !== "undefined" && localStorage.getItem(migrationKey) === "true";
+
+      if (!migrated && localNotes.length) {
+        const existingTexts = new Set(fallbackNotes.map((note) => note.text.toLowerCase()));
+        const rows = localNotes
+          .filter((note) => note.text && !existingTexts.has(note.text.toLowerCase()))
+          .map((note) => ({
+            user_id: user.id,
+            column: "log",
+            text: encodeQuoteItemText(note.text),
+            started_at: note.createdAt || new Date().toISOString(),
+            finished_at: note.createdAt || new Date().toISOString(),
+          }));
+
+        if (rows.length) {
+          const { error: insertError } = await supabase.from("items").insert(rows);
+          if (!insertError) {
+            const refresh = await supabase
+              .from("items")
+              .select("id,text,started_at")
+              .eq("user_id", user.id)
+              .eq("column", "log")
+              .like("text", `${QUOTE_ITEM_PREFIX}%`)
+              .order("started_at", { ascending: false });
+
+            if (!refresh.error) {
+              fallbackNotes = (refresh.data || [])
+                .map((row) => ({
+                  id: row.id,
+                  text: decodeQuoteItemText(row.text),
+                  createdAt: row.started_at || new Date().toISOString(),
+                }))
+                .filter(hasQuoteNoteContent);
+            }
+          }
+        }
+
+        try {
+          localStorage.setItem(migrationKey, "true");
+        } catch (err) {
+          // Local migration marker can wait.
+        }
+      }
+
+      setQuoteNotesAvailable(false);
+      setQuoteNotes(fallbackNotes);
+      try {
+        writeStoredQuoteNotes(user.id, fallbackNotes);
+      } catch (err) {
+        // Remote fallback is still loaded for this session.
+      }
+    }
+
     const { data, error: quoteError } = await supabase
       .from("quote_notes")
       .select("*")
@@ -868,15 +960,50 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     if (quoteError) {
       if (isMissingQuoteNotes(quoteError)) {
-        setQuoteNotesAvailable(false);
-        setQuoteNotes(readStoredQuoteNotes(user.id));
+        await loadFallbackQuoteItems();
         return;
       }
 
       throw quoteError;
     }
 
-    const nextNotes = (data || []).map(normalizeQuoteNote).filter(hasQuoteNoteContent);
+    let nextNotes = (data || []).map(normalizeQuoteNote).filter(hasQuoteNoteContent);
+    const localNotes = readStoredQuoteNotes(user.id);
+    const migrationKey = getQuoteMigrationStorageKey(user.id, "quote-notes");
+    const migrated = typeof window !== "undefined" && localStorage.getItem(migrationKey) === "true";
+
+    if (!migrated && localNotes.length) {
+      const existingTexts = new Set(nextNotes.map((note) => note.text.toLowerCase()));
+      const rows = localNotes
+        .filter((note) => note.text && !existingTexts.has(note.text.toLowerCase()))
+        .map((note) => ({
+          user_id: user.id,
+          text: note.text,
+          created_at: note.createdAt || new Date().toISOString(),
+        }));
+
+      if (rows.length) {
+        const { error: insertError } = await supabase.from("quote_notes").insert(rows);
+        if (!insertError) {
+          const refresh = await supabase
+            .from("quote_notes")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
+
+          if (!refresh.error) {
+            nextNotes = (refresh.data || []).map(normalizeQuoteNote).filter(hasQuoteNoteContent);
+          }
+        }
+      }
+
+      try {
+        localStorage.setItem(migrationKey, "true");
+      } catch (err) {
+        // Local migration marker can wait.
+      }
+    }
+
     setQuoteNotesAvailable(true);
     setQuoteNotes(nextNotes);
     try {
@@ -1094,7 +1221,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         setItemImagesAvailable(true);
         setTrashAvailable(true);
 
-        let localRows = readGuestItems();
+        let localRows = readGuestItems().filter((item) => !isQuoteFallbackItem(item));
         const normalized = applyStoredItemImages(localRows.map(normalizeItem), user.id);
         const activeItems = normalized.filter((item) => !item.deletedAt);
         const nextTrash = normalized.filter((item) => item.deletedAt).sort((a, b) => sortNewestFirst(a, b, "deletedAt"));
@@ -1179,7 +1306,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
       if (loadError) throw loadError;
 
-      const normalized = applyStoredItemImages((data || []).map(normalizeItem), user.id);
+      const normalized = applyStoredItemImages((data || []).filter((item) => !isQuoteFallbackItem(item)).map(normalizeItem), user.id);
       const activeItems = normalized.filter((item) => !item.deletedAt);
       const nextTrash = normalized.filter((item) => item.deletedAt).sort((a, b) => sortNewestFirst(a, b, "deletedAt"));
       const nextThoughts = activeItems.filter((item) => item.column === "thoughts").sort(sortNewestFirst);
@@ -1860,7 +1987,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       }
 
       const payload = {
-       
+        user_id: user.id,
         column: "thoughts",
         text,
         started_at: new Date().toISOString(),
@@ -2674,11 +2801,32 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     const text = quoteDraft.trim().replace(/\s+/g, " ").slice(0, 220);
     if (!text) return;
 
-    runMutation(async () => {
-      if (isGuest || !quoteNotesAvailable) {
+    async function addFallbackQuoteNote() {
+      const timestamp = new Date().toISOString();
+      const { error: fallbackError } = await supabase.from("items").insert({
+        user_id: user.id,
+        column: "log",
+        text: encodeQuoteItemText(text),
+        started_at: timestamp,
+        finished_at: timestamp,
+      });
+
+      if (fallbackError) {
         const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
         writeStoredQuoteNotes(user.id, nextNotes);
         setQuoteNotes(nextNotes);
+      } else {
+        await loadQuoteNotes();
+      }
+    }
+
+    runMutation(async () => {
+      if (isGuest) {
+        const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
+        writeStoredQuoteNotes(user.id, nextNotes);
+        setQuoteNotes(nextNotes);
+      } else if (!quoteNotesAvailable) {
+        await addFallbackQuoteNote();
       } else {
         const { error: insertError } = await supabase.from("quote_notes").insert({
           user_id: user.id,
@@ -2688,9 +2836,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         if (insertError) {
           if (isMissingQuoteNotes(insertError)) {
             setQuoteNotesAvailable(false);
-            const nextNotes = [createLocalQuoteNote(text), ...quoteNotes];
-            writeStoredQuoteNotes(user.id, nextNotes);
-            setQuoteNotes(nextNotes);
+            await addFallbackQuoteNote();
           } else {
             throw insertError;
           }
@@ -2708,10 +2854,20 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     if (!currentQuoteNote) return;
 
     runMutation(async () => {
-      if (isGuest || !quoteNotesAvailable || currentQuoteNote.id.startsWith("quote-")) {
+      if (isGuest || currentQuoteNote.id.startsWith("quote-")) {
         const nextNotes = quoteNotes.filter((note) => note.id !== currentQuoteNote.id);
         writeStoredQuoteNotes(user.id, nextNotes);
         setQuoteNotes(nextNotes);
+      } else if (!quoteNotesAvailable) {
+        const { error: deleteError } = await supabase
+          .from("items")
+          .delete()
+          .eq("id", currentQuoteNote.id)
+          .eq("user_id", user.id)
+          .eq("column", "log");
+
+        if (deleteError) throw deleteError;
+        await loadQuoteNotes();
       } else {
         const { error: deleteError } = await supabase
           .from("quote_notes")

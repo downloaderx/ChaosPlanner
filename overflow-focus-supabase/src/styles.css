@@ -9217,4 +9217,31 @@ button.project-chip.editable:focus-visible {
   .bp-aside-row {
     background: color-mix(in srgb, var(--note-bg) 90%, transparent) !important;
   }
+
+  .planner-header .header-controls,
+  [data-theme="pixel"] .planner-header .header-controls,
+  [data-theme="ghibli"] .planner-header .header-controls,
+  [data-theme="cyberpunk"] .planner-header .header-controls,
+  [data-theme="brutalist"] .planner-header .header-controls {
+    min-height: 38px !important;
+    height: auto !important;
+    margin-top: 8px !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .planner-header .theme-menu,
+  [data-theme="pixel"] .planner-header .theme-menu,
+  [data-theme="ghibli"] .planner-header .theme-menu,
+  [data-theme="cyberpunk"] .planner-header .theme-menu,
+  [data-theme="brutalist"] .planner-header .theme-menu {
+    min-height: 38px !important;
+    height: 38px !important;
+    margin: 0 !important;
+  }
+
+  .planner-header .theme-menu-title {
+    height: 38px !important;
+    margin: 0 !important;
+  }
 }
