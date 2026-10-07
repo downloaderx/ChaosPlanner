@@ -9023,23 +9023,23 @@ button.project-chip.editable:focus-visible {
 .header-account-menu,
 .account-menu {
   position: relative !important;
-  z-index: 15000 !important;
+  z-index: 12000 !important;
   isolation: isolate !important;
 }
 
 .account-dropdown,
 .header-account-menu .account-dropdown {
-  z-index: 15001 !important;
+  z-index: 12001 !important;
 }
 
 .theme-menu,
 .planner-header .theme-menu {
-  z-index: 14000 !important;
+  z-index: 11000 !important;
 }
 
 .theme-menu-popover,
 .planner-header .theme-menu-popover {
-  z-index: 14001 !important;
+  z-index: 11001 !important;
 }
 
 @supports (min-height: 100dvh) {
@@ -9243,43 +9243,5 @@ button.project-chip.editable:focus-visible {
   .planner-header .theme-menu-title {
     height: 38px !important;
     margin: 0 !important;
-  }
-}
-
-/* Mobile theme menu open state: keep the overlay above the selected project/focus pill. */
-@media (max-width: 640px) {
-  html.theme-menu-open .planner-header,
-  html.theme-menu-open[data-theme="pixel"] .planner-header,
-  html.theme-menu-open[data-theme="ghibli"] .planner-header,
-  html.theme-menu-open[data-theme="cyberpunk"] .planner-header,
-  html.theme-menu-open[data-theme="brutalist"] .planner-header {
-    z-index: 16000 !important;
-  }
-
-  html.theme-menu-open .period-focus {
-    z-index: 1 !important;
-  }
-
-  html.theme-menu-open .theme-menu,
-  html.theme-menu-open .planner-header .theme-menu {
-    z-index: 16001 !important;
-  }
-
-  html.theme-menu-open .theme-menu-popover,
-  html.theme-menu-open .planner-header .theme-menu-popover {
-    z-index: 16002 !important;
-  }
-
-  .mobile-theme-menu-portal {
-    position: fixed !important;
-    top: max(12px, env(safe-area-inset-top)) !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: max(12px, env(safe-area-inset-left)) !important;
-    transform: none !important;
-    z-index: 2147483000 !important;
-    grid-template-columns: 1fr !important;
-    width: min(230px, calc(100vw - 24px)) !important;
-    max-height: min(430px, calc(100vh - 24px)) !important;
   }
 }

@@ -41,8 +41,6 @@ The app expects this table:
 | column | text |
 | text | text |
 | project_tag | text, nullable |
-| image_url | text, nullable |
-| image_alt | text, nullable |
 | started_at | timestamptz, default `now()` |
 | finished_at | timestamptz, nullable |
 | deleted_at | timestamptz, nullable |
@@ -59,9 +57,6 @@ The SQL file is in `database/schema-and-policies.sql` if you need to recreate th
 Daily goal settings sync through `public.user_settings` for signed-in users. If you already have an existing Supabase
 project, run `database/add-user-settings.sql` once in the Supabase SQL editor.
 
-Quote notes sync through `public.quote_notes`. If your Supabase project was created before quote syncing was added,
-run `database/add-quote-notes.sql` once in the Supabase SQL editor.
-
 ## 4. Email confirmation note
 
 If sign-up says to check email, confirm the account from the email Supabase sends.
@@ -75,6 +70,3 @@ When importing the project to Vercel, add the same environment variables:
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 After deploy, add your Vercel URL in Supabase Auth URL settings if needed.
-
-The included `vercel.json` applies the security headers and rewrites non-asset routes to `index.html`, so refreshes and
-auth redirects continue to load the Vite app.

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Check,
   ChevronDown,
@@ -35,7 +34,6 @@ export const THEMES = [
 
 const STORAGE_KEY = "overflow-focus-theme";
 const INTRO_QUICK_THEME_IDS = ["cozy", "comic", "pixel"];
-const MOBILE_THEME_MENU_QUERY = "(max-width: 640px)";
 
 function getRandomThemeId() {
   return THEMES[Math.floor(Math.random() * THEMES.length)]?.id || "cozy";
@@ -72,33 +70,8 @@ export function useTheme() {
 
 export function ThemeSwitcher({ theme, onChange }) {
   const [open, setOpen] = useState(false);
-  const [mobileMenu, setMobileMenu] = useState(false);
   const activeTheme = THEMES.find((item) => item.id === theme) || THEMES[0];
   const ActiveIcon = activeTheme.Icon;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-
-    const mediaQuery = window.matchMedia(MOBILE_THEME_MENU_QUERY);
-    const updateMobileMenu = () => setMobileMenu(mediaQuery.matches);
-
-    updateMobileMenu();
-    mediaQuery.addEventListener?.("change", updateMobileMenu);
-
-    return () => {
-      mediaQuery.removeEventListener?.("change", updateMobileMenu);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return undefined;
-
-    document.documentElement.classList.toggle("theme-menu-open", open);
-
-    return () => {
-      document.documentElement.classList.remove("theme-menu-open");
-    };
-  }, [open]);
 
   function randomizeTheme() {
     const availableThemes = THEMES.filter((t) => t.id !== theme);
@@ -111,45 +84,6 @@ export function ThemeSwitcher({ theme, onChange }) {
     onChange(themeId);
     setOpen(false);
   }
-
-  const themePopover = (
-    <div
-      className={`theme-menu-popover${mobileMenu ? " mobile-theme-menu-portal" : ""}`}
-      role="group"
-      aria-label="Choose app theme"
-    >
-      {THEMES.map((t) => {
-        const Icon = t.Icon;
-
-        return (
-          <button
-            key={t.id}
-            type="button"
-            className={`theme-btn theme-menu-option theme-${t.id}${theme === t.id ? " active" : ""}`}
-            onClick={() => pickTheme(t.id)}
-            aria-pressed={theme === t.id}
-            aria-label={`${t.label} theme`}
-            title={`${t.label} theme`}
-          >
-            <Icon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
-            <span className="theme-label">{t.label}</span>
-            <Check className="theme-menu-check" aria-hidden="true" size={13} strokeWidth={2.6} />
-          </button>
-        );
-      })}
-
-      <button
-        type="button"
-        className="theme-btn theme-menu-option random-theme-btn"
-        onClick={randomizeTheme}
-        aria-label="Random theme"
-        title="Random theme"
-      >
-        <Shuffle className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
-        <span className="theme-label">Random</span>
-      </button>
-    </div>
-  );
 
   return (
     <div className={`theme-menu${open ? " open" : ""}`}>
@@ -167,8 +101,40 @@ export function ThemeSwitcher({ theme, onChange }) {
         <ChevronDown className="theme-menu-chevron" aria-hidden="true" size={14} strokeWidth={2.4} />
       </button>
 
-      {open && mobileMenu && typeof document !== "undefined" ? createPortal(themePopover, document.body) : null}
-      {open && !mobileMenu ? themePopover : null}
+      {open && (
+        <div className="theme-menu-popover" role="group" aria-label="Choose app theme">
+          {THEMES.map((t) => {
+            const Icon = t.Icon;
+
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className={`theme-btn theme-menu-option theme-${t.id}${theme === t.id ? " active" : ""}`}
+                onClick={() => pickTheme(t.id)}
+                aria-pressed={theme === t.id}
+                aria-label={`${t.label} theme`}
+                title={`${t.label} theme`}
+              >
+                <Icon className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+                <span className="theme-label">{t.label}</span>
+                <Check className="theme-menu-check" aria-hidden="true" size={13} strokeWidth={2.6} />
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            className="theme-btn theme-menu-option random-theme-btn"
+            onClick={randomizeTheme}
+            aria-label="Random theme"
+            title="Random theme"
+          >
+            <Shuffle className="theme-icon" aria-hidden="true" size={14} strokeWidth={2.4} />
+            <span className="theme-label">Random</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
