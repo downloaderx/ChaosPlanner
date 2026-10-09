@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -70,8 +70,30 @@ export function useTheme() {
 
 export function ThemeSwitcher({ theme, onChange }) {
   const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
   const activeTheme = THEMES.find((item) => item.id === theme) || THEMES[0];
   const ActiveIcon = activeTheme.Icon;
+
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return undefined;
+
+    function handlePointerDown(event) {
+      if (menuRef.current?.contains(event.target)) return;
+      setOpen(false);
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   function randomizeTheme() {
     const availableThemes = THEMES.filter((t) => t.id !== theme);
@@ -86,7 +108,7 @@ export function ThemeSwitcher({ theme, onChange }) {
   }
 
   return (
-    <div className={`theme-menu${open ? " open" : ""}`}>
+    <div ref={menuRef} className={`theme-menu${open ? " open" : ""}`}>
       <span className="theme-menu-title">Theme</span>
       <button
         type="button"

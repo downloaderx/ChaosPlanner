@@ -780,6 +780,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
   const [settingsAvailable, setSettingsAvailable] = useState(true);
   const [goalCelebrationDismissed, setGoalCelebrationDismissed] = useState(false);
   const inputRef = useRef(null);
+  const periodFocusRef = useRef(null);
   const undoTimerRef = useRef(null);
   const pomodoroAudioRef = useRef(null);
   const pomodoroAudioContextRef = useRef(null);
@@ -1445,6 +1446,30 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
     setPeriodFocusOpen(false);
     setPeriodFocusInfoOpen(false);
   }, [user.id]);
+
+  useEffect(() => {
+    if ((!periodFocusOpen && !periodFocusInfoOpen) || typeof document === "undefined") return undefined;
+
+    function handlePointerDown(event) {
+      if (periodFocusRef.current?.contains(event.target)) return;
+      setPeriodFocusOpen(false);
+      setPeriodFocusInfoOpen(false);
+    }
+
+    function handleKeyDown(event) {
+      if (event.key !== "Escape") return;
+      setPeriodFocusOpen(false);
+      setPeriodFocusInfoOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [periodFocusOpen, periodFocusInfoOpen]);
 
   useEffect(() => {
     if (guestSyncPromptHandled || guestSyncPromptVisible || guestSyncPromptSnoozed()) return undefined;
@@ -2981,7 +3006,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
         )}
       </div>
     </div>
-    <div className="period-focus">
+    <div ref={periodFocusRef} className="period-focus">
       <button
         type="button"
         className={`period-focus-trigger${periodFocus.text ? " active" : ""}`}
