@@ -7502,7 +7502,8 @@ button.project-chip.editable:focus-visible {
     height: auto !important;
     min-height: 38px !important;
     margin: 4px 0 0 !important;
-    flex-wrap: wrap !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
   }
 
   .planner-header h1,
@@ -7514,6 +7515,8 @@ button.project-chip.editable:focus-visible {
     min-height: 32px !important;
     font-size: 30px !important;
     line-height: 1.05 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
   }
 
   .planner-header .header-controls,
@@ -7534,6 +7537,10 @@ button.project-chip.editable:focus-visible {
     margin-left: 0;
     justify-content: flex-start;
     gap: 6px;
+  }
+
+  .period-focus-info-btn {
+    display: none !important;
   }
 
   .period-focus-trigger {
