@@ -1083,13 +1083,10 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
       setDailyGoalChangedOn(data.daily_goal_changed_on || "");
       if (canSyncPeriodFocus) {
         const remoteFocus = focusFromSettingsRow(data);
-        const localFocus = readStoredPeriodFocus(user.id);
-        const nextFocus = !remoteFocus.text && localFocus.text ? localFocus : remoteFocus;
-        setPeriodFocus(nextFocus);
-        setPeriodFocusDraft(nextFocus.text);
-        setPeriodFocusMonthsDraft(nextFocus.months);
-        writeStoredPeriodFocus(user.id, nextFocus);
-        if (nextFocus === localFocus) await saveRemotePeriodFocusSettings(localFocus);
+        setPeriodFocus(remoteFocus);
+        setPeriodFocusDraft(remoteFocus.text);
+        setPeriodFocusMonthsDraft(remoteFocus.months);
+        writeStoredPeriodFocus(user.id, remoteFocus);
       }
       return;
     }
@@ -1133,7 +1130,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
 
     setDailyGoal(DAILY_GOAL_DEFAULT);
     setDailyGoalChangedOn("");
-  }, [isGuest, saveRemotePeriodFocusSettings, user.id]);
+  }, [isGuest, user.id]);
 
   function showUndoToast(message, onUndo) {
     if (undoTimerRef.current) {
