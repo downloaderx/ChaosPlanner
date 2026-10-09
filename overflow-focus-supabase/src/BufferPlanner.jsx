@@ -3002,8 +3002,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           </div>
         )}
       </div>
-    </div>
-    <div ref={periodFocusRef} className="period-focus">
+      <div ref={periodFocusRef} className="period-focus">
       <button
         type="button"
         className={`period-focus-trigger${periodFocus.text ? " active" : ""}`}
@@ -3105,7 +3104,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
             <button type="button" onClick={clearPeriodFocus}>
               clear
             </button>
-            <button type="submit" disabled={periodFocusChangeBlocked}>
+            <button type="submit" disabled={Boolean(periodFocus.text) || periodFocusChangeBlocked}>
               <Check size={13} aria-hidden="true" />
               save
             </button>
@@ -3124,6 +3123,7 @@ export default function BufferPlanner({ user, theme, onThemeChange, onExitGuest 
           </button>
         </div>
       )}
+    </div>
     </div>
   </div>
   {appInfoOpen && (

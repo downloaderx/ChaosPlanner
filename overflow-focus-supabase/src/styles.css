@@ -2018,8 +2018,8 @@ input:disabled {
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
-  width: 54px;
-  height: 24px;
+  width: auto;
+  height: auto;
 }
 
 .period-focus {
